@@ -13,6 +13,12 @@ from app.routers import auth, categories, expenses, stats, upload
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not settings.openai_api_key or not settings.openai_api_key.startswith("sk-"):
+        import logging
+        logging.getLogger(__name__).warning(
+            "OPENAI_API_KEY is missing or invalid (value: %r). AI features will fail.",
+            settings.openai_api_key[:8] + "..." if settings.openai_api_key else "(empty)",
+        )
     await init_db()
     yield
 
