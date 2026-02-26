@@ -48,7 +48,10 @@ async def create_expense(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    parsed = await parse_expense_from_text(body.text)
+    try:
+        parsed = await parse_expense_from_text(body.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al llamar a OpenAI: {type(e).__name__}: {e}")
     if not parsed:
         raise HTTPException(
             status_code=422,

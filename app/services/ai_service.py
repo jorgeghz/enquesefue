@@ -75,6 +75,3 @@ async def parse_expense_from_text(text: str, today: datetime | None = None) -> E
     except (json.JSONDecodeError, KeyError, InvalidOperation) as e:
         logger.error("Error parseando respuesta de IA: %s | raw: %s", e, locals().get("raw", ""))
         return None
-    except Exception as e:
-        logger.exception("Error inesperado en ai_service: %s", e)
-        return None
