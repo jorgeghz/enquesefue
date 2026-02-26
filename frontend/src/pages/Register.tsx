@@ -19,7 +19,8 @@ export default function Register() {
       await register(email, password, name)
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al crear la cuenta')
+      const detail = err.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : JSON.stringify(detail) || err.message || 'Error al crear la cuenta')
     } finally {
       setLoading(false)
     }

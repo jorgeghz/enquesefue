@@ -38,6 +38,25 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
     await _seed_global_categories()
+    await _seed_demo_user()
+
+
+async def _seed_demo_user() -> None:
+    from sqlalchemy import select
+
+    import bcrypt as _bcrypt
+
+    from app.models.user import User
+
+    demo_email = "demo@enquesefue.com"
+    demo_password = "Demo1234!"
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(User).where(User.email == demo_email))
+        if result.scalar_one_or_none() is None:
+            password_hash = _bcrypt.hashpw(demo_password.encode(), _bcrypt.gensalt()).decode()
+            session.add(User(email=demo_email, password_hash=password_hash, name="Demo"))
+            await session.commit()
 
 
 async def _seed_global_categories() -> None:
