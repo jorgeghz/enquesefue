@@ -7,13 +7,16 @@ import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
+import httpx
 from openai import OpenAI
 
 from app.config import settings
 from app.schemas.expense import ExpenseParsed
 
 logger = logging.getLogger(__name__)
-client = OpenAI(api_key=settings.openai_api_key)
+# verify=False bypasses SSL entirely — used to rule out certificate issues on Railway
+_http_client = httpx.Client(verify=False)
+client = OpenAI(api_key=settings.openai_api_key, http_client=_http_client)
 
 CATEGORIES = [
     "Alimentación", "Transporte", "Hogar", "Entretenimiento",

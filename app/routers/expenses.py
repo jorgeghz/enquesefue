@@ -51,7 +51,9 @@ async def create_expense(
     try:
         parsed = await parse_expense_from_text(body.text)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al llamar a OpenAI: {type(e).__name__}: {e}")
+        cause = getattr(e, "__cause__", None) or getattr(e, "__context__", None)
+        cause_str = f" | causa: {type(cause).__name__}: {cause}" if cause else ""
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}{cause_str}")
     if not parsed:
         raise HTTPException(
             status_code=422,
