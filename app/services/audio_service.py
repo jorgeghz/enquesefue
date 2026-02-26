@@ -2,6 +2,7 @@
 Servicio para procesar audio.
 Recibe bytes directamente (desde upload web) y transcribe con Whisper.
 """
+import asyncio
 import io
 import logging
 
@@ -20,11 +21,14 @@ async def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/web
         audio_file = io.BytesIO(audio_bytes)
         audio_file.name = f"audio.{extension}"
 
-        response = await client.audio.transcriptions.create(
-            model="whisper-1",
-            file=audio_file,
-            language="es",
-        )
+        def _call():
+            return client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                language="es",
+            )
+
+        response = await asyncio.to_thread(_call)
         transcription = response.text.strip()
         logger.info("Audio transcrito (%d chars): %s", len(transcription), transcription[:100])
         return transcription

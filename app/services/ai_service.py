@@ -1,21 +1,19 @@
 """
 Servicio de IA para extraer datos de gastos desde texto libre usando GPT-4o.
 """
+import asyncio
 import json
 import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
-import certifi
-import httpx
-from openai import AsyncOpenAI
+from openai import OpenAI
 
 from app.config import settings
 from app.schemas.expense import ExpenseParsed
 
 logger = logging.getLogger(__name__)
-_http_client = httpx.AsyncClient(verify=certifi.where())
-client = AsyncOpenAI(api_key=settings.openai_api_key, http_client=_http_client)
+client = OpenAI(api_key=settings.openai_api_key)
 
 CATEGORIES = [
     "Alimentación", "Transporte", "Hogar", "Entretenimiento",
@@ -43,8 +41,8 @@ async def parse_expense_from_text(text: str, today: datetime | None = None) -> E
     """
     today = today or datetime.now()
 
-    try:
-        response = await client.chat.completions.create(
+    def _call() -> str:
+        response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
@@ -53,8 +51,10 @@ async def parse_expense_from_text(text: str, today: datetime | None = None) -> E
             temperature=0,
             max_tokens=300,
         )
+        return response.choices[0].message.content.strip()
 
-        raw = response.choices[0].message.content.strip()
+    try:
+        raw = await asyncio.to_thread(_call)
         data = json.loads(raw)
 
         if "error" in data:

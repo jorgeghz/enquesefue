@@ -2,6 +2,7 @@
 Servicio para analizar imágenes de tickets/recibos con GPT-4o Vision.
 Recibe bytes directamente (desde upload web).
 """
+import asyncio
 import base64
 import json
 import logging
@@ -49,16 +50,18 @@ async def analyze_receipt_bytes(image_bytes: bytes, mime_type: str = "image/jpeg
             user_content.insert(0, {"type": "text", "text": f"Nota adicional del usuario: {caption}"})
         user_content.insert(0, {"type": "text", "text": f"Fecha actual: {today.isoformat()}"})
 
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": VISION_SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0,
-            max_tokens=400,
-        )
+        def _call():
+            return client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": VISION_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_content},
+                ],
+                temperature=0,
+                max_tokens=400,
+            )
 
+        response = await asyncio.to_thread(_call)
         raw = response.choices[0].message.content.strip()
         data = json.loads(raw)
 

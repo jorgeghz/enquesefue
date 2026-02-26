@@ -2,6 +2,7 @@
 Servicio para extraer transacciones de estados de cuenta bancarios en PDF.
 Usa pdfplumber para extraer texto y GPT-4o para identificar las transacciones.
 """
+import asyncio
 import io
 import json
 import logging
@@ -64,19 +65,20 @@ async def parse_bank_statement(pdf_bytes: bytes, today: datetime | None = None) 
         if len(pdf_text) > 12000:
             pdf_text = pdf_text[:12000] + "\n[...texto truncado...]"
 
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": PDF_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": f"Fecha actual: {today.isoformat()}\n\nContenido del estado de cuenta:\n{pdf_text}",
-                },
-            ],
-            temperature=0,
-            max_tokens=2000,
-        )
+        _content = f"Fecha actual: {today.isoformat()}\n\nContenido del estado de cuenta:\n{pdf_text}"
 
+        def _call():
+            return client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": PDF_SYSTEM_PROMPT},
+                    {"role": "user", "content": _content},
+                ],
+                temperature=0,
+                max_tokens=2000,
+            )
+
+        response = await asyncio.to_thread(_call)
         raw = response.choices[0].message.content.strip()
         transactions = json.loads(raw)
 

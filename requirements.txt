@@ -23,7 +23,6 @@ pdfplumber==0.11.4
 
 # HTTP & file utils
 httpx==0.28.1
-certifi
 python-multipart==0.0.20
 python-dotenv==1.0.1
 aiofiles==24.1.0
