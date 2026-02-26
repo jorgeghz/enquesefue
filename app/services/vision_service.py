@@ -8,14 +8,10 @@ import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
-from openai import AsyncOpenAI
-
-from app.config import settings
 from app.schemas.expense import ExpenseParsed
-from app.services.ai_service import CATEGORIES
+from app.services.ai_service import CATEGORIES, client
 
 logger = logging.getLogger(__name__)
-client = AsyncOpenAI(api_key=settings.openai_api_key)
 
 VISION_SYSTEM_PROMPT = f"""Eres un asistente experto en analizar tickets y recibos de compra.
 Analiza la imagen y extrae la información del gasto. Devuelve un JSON con:

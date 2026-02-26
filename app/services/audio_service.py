@@ -5,12 +5,9 @@ Recibe bytes directamente (desde upload web) y transcribe con Whisper.
 import io
 import logging
 
-from openai import AsyncOpenAI
-
-from app.config import settings
+from app.services.ai_service import client
 
 logger = logging.getLogger(__name__)
-client = AsyncOpenAI(api_key=settings.openai_api_key)
 
 
 async def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/webm") -> str | None:
