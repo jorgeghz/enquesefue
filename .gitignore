@@ -5,8 +5,9 @@ __pycache__/
 .venv/
 venv/
 env/
-dist/
 build/
+frontend/dist/
+frontend/node_modules/
 *.egg-info/
 
 # Env

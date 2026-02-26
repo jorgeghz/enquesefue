@@ -47,9 +47,22 @@ async def health():
 # Servir el frontend React en producción
 FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 
-if FRONTEND_DIST.exists():
-    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
+_assets_dir = FRONTEND_DIST / "assets"
+if _assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
 
-    @app.get("/{full_path:path}", include_in_schema=False)
-    async def spa_fallback(full_path: str):
-        return FileResponse(str(FRONTEND_DIST / "index.html"))
+
+@app.get("/", include_in_schema=False)
+async def root():
+    index = FRONTEND_DIST / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    return {"status": "backend ok", "frontend": "not built yet"}
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+async def spa_fallback(full_path: str):
+    index = FRONTEND_DIST / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    return {"status": "backend ok", "frontend": "not built yet", "path": full_path}
