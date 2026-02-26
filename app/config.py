@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7  # 7 días
 
+    # Twilio WhatsApp
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    twilio_whatsapp_from: str = "whatsapp:+14155238886"  # número sandbox por defecto
+
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"

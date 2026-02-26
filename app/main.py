@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import init_db
-from app.routers import auth, categories, expenses, stats, upload
+from app.routers import auth, categories, expenses, stats, upload, whatsapp
 
 
 @asynccontextmanager
@@ -43,6 +43,7 @@ app.include_router(expenses.router)
 app.include_router(categories.router)
 app.include_router(stats.router)
 app.include_router(upload.router)
+app.include_router(whatsapp.router)
 
 
 @app.get("/health")

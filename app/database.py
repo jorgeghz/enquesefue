@@ -33,7 +33,7 @@ async def get_db() -> AsyncSession:
 
 async def init_db() -> None:
     """Crear tablas y hacer seed de categorías globales."""
-    from app.models import category, expense, user  # noqa: F401 — registra los modelos
+    from app.models import category, expense, user, whatsapp  # noqa: F401 — registra los modelos
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -44,6 +44,14 @@ async def init_db() -> None:
         await conn.execute(text(
             "CREATE INDEX IF NOT EXISTS ix_expenses_user_file_hash "
             "ON expenses (user_id, file_hash) WHERE file_hash IS NOT NULL"
+        ))
+        # Migración idempotente: agregar columna whatsapp_phone a users
+        await conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(20)"
+        ))
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_whatsapp_phone "
+            "ON users (whatsapp_phone) WHERE whatsapp_phone IS NOT NULL"
         ))
 
     await _seed_global_categories()
