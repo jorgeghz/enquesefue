@@ -11,8 +11,10 @@ _is_local = "localhost" in _db_url or "127.0.0.1" in _db_url
 if _is_local:
     _connect_args: dict = {}
 else:
-    # Railway PostgreSQL requiere SSL — asyncpg necesita un SSLContext real, no un string
+    # Railway PostgreSQL usa certificados autofirmados — desactivar verificación
     _ssl_ctx = ssl.create_default_context()
+    _ssl_ctx.check_hostname = False
+    _ssl_ctx.verify_mode = ssl.CERT_NONE
     _connect_args = {"ssl": _ssl_ctx}
 
 engine = create_async_engine(_db_url, echo=False, connect_args=_connect_args)
