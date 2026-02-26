@@ -6,13 +6,16 @@ import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
+import certifi
+import httpx
 from openai import AsyncOpenAI
 
 from app.config import settings
 from app.schemas.expense import ExpenseParsed
 
 logger = logging.getLogger(__name__)
-client = AsyncOpenAI(api_key=settings.openai_api_key)
+_http_client = httpx.AsyncClient(verify=certifi.where())
+client = AsyncOpenAI(api_key=settings.openai_api_key, http_client=_http_client)
 
 CATEGORIES = [
     "Alimentación", "Transporte", "Hogar", "Entretenimiento",
