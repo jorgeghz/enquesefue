@@ -71,7 +71,7 @@ export default function Dashboard() {
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => formatMoney(v)} />
+                  <Tooltip formatter={(v: number | string | undefined) => formatMoney(Number(v ?? 0))} />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
