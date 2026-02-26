@@ -14,6 +14,7 @@ class UserOut(BaseModel):
     email: str
     name: str
     currency: str
+    whatsapp_phone: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

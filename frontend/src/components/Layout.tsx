@@ -52,6 +52,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <nav className="space-y-1 flex-1">
           {navLink('/', 'Dashboard', '📊')}
           {navLink('/gastos', 'Gastos', '💳')}
+          {navLink('/configuracion', 'Configuración', '⚙️')}
         </nav>
         <button
           onClick={handleLogout}
@@ -75,6 +76,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex md:hidden z-10">
         {bottomNavLink('/', 'Dashboard', '📊')}
         {bottomNavLink('/gastos', 'Gastos', '💳')}
+        {bottomNavLink('/configuracion', 'Config', '⚙️')}
         <button
           onClick={handleLogout}
           className="flex flex-col items-center gap-0.5 px-4 py-2 text-xs font-medium text-gray-400 transition flex-1"

@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Expenses from './pages/Expenses'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Settings from './pages/Settings'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/gastos" element={<PrivateRoute><Expenses /></PrivateRoute>} />
+        <Route path="/configuracion" element={<PrivateRoute><Settings /></PrivateRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
