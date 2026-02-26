@@ -1,13 +1,19 @@
+import ssl
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
-# Railway y cualquier PostgreSQL remoto requieren SSL.
-# Para localhost no se usa SSL (desarrollo local).
 _db_url = settings.async_database_url
 _is_local = "localhost" in _db_url or "127.0.0.1" in _db_url
-_connect_args = {} if _is_local else {"ssl": "require"}
+
+if _is_local:
+    _connect_args: dict = {}
+else:
+    # Railway PostgreSQL requiere SSL — asyncpg necesita un SSLContext real, no un string
+    _ssl_ctx = ssl.create_default_context()
+    _connect_args = {"ssl": _ssl_ctx}
 
 engine = create_async_engine(_db_url, echo=False, connect_args=_connect_args)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
