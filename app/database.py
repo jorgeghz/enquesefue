@@ -3,7 +3,13 @@ from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
 
-engine = create_async_engine(settings.async_database_url, echo=False)
+# Railway y cualquier PostgreSQL remoto requieren SSL.
+# Para localhost no se usa SSL (desarrollo local).
+_db_url = settings.async_database_url
+_is_local = "localhost" in _db_url or "127.0.0.1" in _db_url
+_connect_args = {} if _is_local else {"ssl": "require"}
+
+engine = create_async_engine(_db_url, echo=False, connect_args=_connect_args)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
