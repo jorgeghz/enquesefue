@@ -1,0 +1,58 @@
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
+
+from app.config import settings
+
+engine = create_async_engine(settings.async_database_url, echo=False)
+AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+async def get_db() -> AsyncSession:
+    async with AsyncSessionLocal() as session:
+        yield session
+
+
+async def init_db() -> None:
+    """Crear tablas y hacer seed de categorías globales."""
+    from app.models import category, expense, user  # noqa: F401 — registra los modelos
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    await _seed_global_categories()
+
+
+async def _seed_global_categories() -> None:
+    from sqlalchemy import select
+
+    from app.models.category import Category
+
+    default_categories = [
+        ("Alimentación", "🍔"),
+        ("Transporte", "🚗"),
+        ("Hogar", "🏠"),
+        ("Entretenimiento", "🎬"),
+        ("Ropa", "👕"),
+        ("Salud", "💊"),
+        ("Tecnología", "📱"),
+        ("Educación", "📚"),
+        ("Trabajo", "💼"),
+        ("Servicios", "🔧"),
+        ("Regalos", "🎁"),
+        ("Otros", "💰"),
+    ]
+
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Category).where(Category.user_id.is_(None)))
+        existing = result.scalars().all()
+        existing_names = {c.name for c in existing}
+
+        for name, emoji in default_categories:
+            if name not in existing_names:
+                session.add(Category(name=name, emoji=emoji, user_id=None))
+
+        await session.commit()
