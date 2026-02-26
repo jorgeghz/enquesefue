@@ -5,7 +5,7 @@ Usan mocks para no hacer llamadas reales a OpenAI.
 import json
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -23,8 +23,9 @@ async def test_parse_expense_basic():
         "date": None,
     })
 
+    # El cliente es síncrono (asyncio.to_thread llama _call sync) → MagicMock, no AsyncMock
     with patch("app.services.ai_service.client") as mock_client:
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.chat.completions.create.return_value = mock_response
         result = await parse_expense_from_text("Gasté 150 en el súper")
 
     assert result is not None
@@ -39,7 +40,7 @@ async def test_parse_expense_no_amount():
     mock_response.choices[0].message.content = json.dumps({"error": "no_amount"})
 
     with patch("app.services.ai_service.client") as mock_client:
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.chat.completions.create.return_value = mock_response
         result = await parse_expense_from_text("Hola, ¿cómo estás?")
 
     assert result is None
@@ -57,7 +58,7 @@ async def test_parse_expense_with_date():
     })
 
     with patch("app.services.ai_service.client") as mock_client:
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.chat.completions.create.return_value = mock_response
         result = await parse_expense_from_text("Taxi al aeropuerto 80 pesos el jueves")
 
     assert result is not None

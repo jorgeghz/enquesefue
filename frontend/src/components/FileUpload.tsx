@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import api from '../api/client'
-import type { ExpenseWithDuplicate, PDFImportResult } from '../types'
+import type { ExpenseWithDuplicate, PDFExpense, PDFImportResult } from '../types'
 
 interface Props {
   onExpenseCreated: (expense: ExpenseWithDuplicate) => void
-  onExpensesCreated?: (expenses: ExpenseWithDuplicate[]) => void
+  onExpensesCreated?: (expenses: PDFExpense[]) => void
 }
 
 export default function FileUpload({ onExpenseCreated, onExpensesCreated }: Props) {
@@ -32,7 +32,8 @@ export default function FileUpload({ onExpenseCreated, onExpensesCreated }: Prop
         if (onExpensesCreated) {
           onExpensesCreated(expenses)
         } else {
-          expenses.forEach((e) => onExpenseCreated(e))
+          // Normalizar PDFExpense → ExpenseWithDuplicate (sin aviso individual en PDFs)
+          expenses.forEach((e) => onExpenseCreated({ ...e, possible_duplicate: null }))
         }
       } else {
         const res = await api.post<ExpenseWithDuplicate>('/upload/image', form, {
