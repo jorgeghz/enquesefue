@@ -21,6 +21,8 @@ class Expense(Base):
     source: Mapped[str] = mapped_column(String(10), default="text", nullable=False)
     # Texto original recibido (transcripción de audio, texto parseado del ticket, etc.)
     raw_input: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # SHA-256 del archivo subido (imagen o PDF); None para fuentes texto/audio
+    file_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="expenses")  # noqa: F821

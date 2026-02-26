@@ -53,3 +53,26 @@ class ExpenseListResponse(BaseModel):
 
 class CreateExpenseRequest(BaseModel):
     text: str
+
+
+class DuplicateInfo(BaseModel):
+    id: int
+    amount: float
+    currency: str
+    description: str
+    date: datetime
+    source: str
+
+
+class ExpenseOutWithDuplicate(ExpenseOut):
+    possible_duplicate: DuplicateInfo | None = None
+
+
+class PDFExpenseOut(ExpenseOut):
+    is_possible_duplicate: bool = False
+
+
+class PDFImportResult(BaseModel):
+    created: int
+    duplicates_count: int
+    expenses: list[PDFExpenseOut]

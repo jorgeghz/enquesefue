@@ -2,14 +2,22 @@ import math
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.models.expense import Expense as ExpenseModel
 from app.models.user import User
-from app.schemas.expense import CreateExpenseRequest, ExpenseListResponse, ExpenseOut
+from app.schemas.expense import (
+    CreateExpenseRequest,
+    ExpenseListResponse,
+    ExpenseOut,
+    ExpenseOutWithDuplicate,
+)
 from app.services.ai_service import parse_expense_from_text
-from app.services.expense_service import delete_expense, list_expenses, save_expense
+from app.services.expense_service import delete_expense, list_expenses, make_duplicate_info, save_expense
 
 router = APIRouter(prefix="/api/expenses", tags=["expenses"])
 
@@ -42,7 +50,7 @@ async def get_expenses(
     )
 
 
-@router.post("", response_model=ExpenseOut, status_code=201)
+@router.post("", response_model=ExpenseOutWithDuplicate, status_code=201)
 async def create_expense(
     body: CreateExpenseRequest,
     current_user: User = Depends(get_current_user),
@@ -57,15 +65,15 @@ async def create_expense(
             status_code=422,
             detail="No pude identificar un gasto en el texto. Intenta ser más específico con el monto.",
         )
-    expense = await save_expense(parsed, current_user, source="text", raw_input=body.text, db=db)
-    from sqlalchemy.orm import selectinload
-    from sqlalchemy import select
-    from app.models.expense import Expense as ExpenseModel
+    expense, dup = await save_expense(parsed, current_user, source="text", raw_input=body.text, db=db)
     result = await db.execute(
         select(ExpenseModel).where(ExpenseModel.id == expense.id).options(selectinload(ExpenseModel.category))
     )
     expense = result.scalar_one()
-    return ExpenseOut.from_expense(expense)
+    return ExpenseOutWithDuplicate(
+        **ExpenseOut.from_expense(expense).model_dump(),
+        possible_duplicate=make_duplicate_info(dup),
+    )
 
 
 @router.delete("/{expense_id}", status_code=204)

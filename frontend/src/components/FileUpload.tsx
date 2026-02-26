@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
 import api from '../api/client'
-import type { Expense } from '../types'
+import type { ExpenseWithDuplicate, PDFImportResult } from '../types'
 
 interface Props {
-  onExpenseCreated: (expense: Expense) => void
-  onExpensesCreated?: (expenses: Expense[]) => void
+  onExpenseCreated: (expense: ExpenseWithDuplicate) => void
+  onExpensesCreated?: (expenses: ExpenseWithDuplicate[]) => void
 }
 
 export default function FileUpload({ onExpenseCreated, onExpensesCreated }: Props) {
@@ -22,13 +22,20 @@ export default function FileUpload({ onExpenseCreated, onExpensesCreated }: Prop
       form.append('file', file)
 
       if (file.type === 'application/pdf') {
-        const res = await api.post<{ created: number; expenses: Expense[] }>('/upload/pdf', form, {
+        const res = await api.post<PDFImportResult>('/upload/pdf', form, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
-        setSuccess(`✅ ${res.data.created} gastos importados del estado de cuenta`)
-        res.data.expenses.forEach((e) => onExpensesCreated?.(res.data.expenses) || onExpenseCreated(e))
+        const { created, duplicates_count, expenses } = res.data
+        let msg = `✅ ${created} gastos importados del estado de cuenta`
+        if (duplicates_count > 0) msg += ` (${duplicates_count} posibles duplicados)`
+        setSuccess(msg)
+        if (onExpensesCreated) {
+          onExpensesCreated(expenses)
+        } else {
+          expenses.forEach((e) => onExpenseCreated(e))
+        }
       } else {
-        const res = await api.post<Expense>('/upload/image', form, {
+        const res = await api.post<ExpenseWithDuplicate>('/upload/image', form, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
         setSuccess('✅ Ticket analizado y gasto registrado')

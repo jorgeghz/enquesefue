@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import api from '../api/client'
+import DuplicateWarning from '../components/DuplicateWarning'
 import FileUpload from '../components/FileUpload'
 import Layout from '../components/Layout'
 import VoiceRecorder from '../components/VoiceRecorder'
-import type { Category, Expense, ExpenseListResponse } from '../types'
+import type { Category, DuplicateInfo, ExpenseListResponse, ExpenseWithDuplicate } from '../types'
 
 type Tab = 'text' | 'voice' | 'file'
 
@@ -16,7 +17,7 @@ function sourceIcon(source: string) {
 }
 
 export default function Expenses() {
-  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [expenses, setExpenses] = useState<ExpenseWithDuplicate[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
@@ -30,13 +31,19 @@ export default function Expenses() {
   const [submitting, setSubmitting] = useState(false)
   const [textError, setTextError] = useState('')
 
+  // Advertencia de duplicado pendiente
+  const [pendingDuplicate, setPendingDuplicate] = useState<{
+    newId: number
+    duplicate: DuplicateInfo
+  } | null>(null)
+
   const fetchExpenses = async (p = page) => {
     setLoading(true)
     try {
       const params: Record<string, unknown> = { page: p, limit: 15 }
       if (filterCategory) params.category_id = filterCategory
       const res = await api.get<ExpenseListResponse>('/expenses', { params })
-      setExpenses(res.data.items)
+      setExpenses(res.data.items.map((e) => ({ ...e, possible_duplicate: null })))
       setTotal(res.data.total)
       setPages(res.data.pages)
     } finally {
@@ -57,11 +64,15 @@ export default function Expenses() {
     if (!text.trim()) return
     setSubmitting(true)
     setTextError('')
+    setPendingDuplicate(null)
     try {
-      const res = await api.post<Expense>('/expenses', { text })
+      const res = await api.post<ExpenseWithDuplicate>('/expenses', { text })
       setExpenses((prev) => [res.data, ...prev])
       setTotal((t) => t + 1)
       setText('')
+      if (res.data.possible_duplicate) {
+        setPendingDuplicate({ newId: res.data.id, duplicate: res.data.possible_duplicate })
+      }
     } catch (err: any) {
       setTextError(err.response?.data?.detail || 'No pude identificar el gasto')
     } finally {
@@ -69,15 +80,25 @@ export default function Expenses() {
     }
   }
 
-  const handleExpenseCreated = (expense: Expense) => {
+  const handleExpenseCreated = (expense: ExpenseWithDuplicate) => {
     setExpenses((prev) => [expense, ...prev])
     setTotal((t) => t + 1)
+    if (expense.possible_duplicate) {
+      setPendingDuplicate({ newId: expense.id, duplicate: expense.possible_duplicate })
+    }
   }
 
   const handleDelete = async (id: number) => {
     await api.delete(`/expenses/${id}`)
     setExpenses((prev) => prev.filter((e) => e.id !== id))
     setTotal((t) => t - 1)
+  }
+
+  const handleDuplicateDelete = () => {
+    if (!pendingDuplicate) return
+    setExpenses((prev) => prev.filter((e) => e.id !== pendingDuplicate.newId))
+    setTotal((t) => t - 1)
+    setPendingDuplicate(null)
   }
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
@@ -100,7 +121,7 @@ export default function Expenses() {
             {tabs.map((t) => (
               <button
                 key={t.key}
-                onClick={() => setTab(t.key)}
+                onClick={() => { setTab(t.key); setPendingDuplicate(null) }}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
                   tab === t.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
@@ -130,6 +151,16 @@ export default function Expenses() {
           {tab === 'text' && textError && <p className="text-red-500 text-sm mt-2">{textError}</p>}
           {tab === 'voice' && <VoiceRecorder onExpenseCreated={handleExpenseCreated} />}
           {tab === 'file' && <FileUpload onExpenseCreated={handleExpenseCreated} />}
+
+          {/* Advertencia de duplicado */}
+          {pendingDuplicate && (
+            <DuplicateWarning
+              newExpenseId={pendingDuplicate.newId}
+              duplicate={pendingDuplicate.duplicate}
+              onDelete={handleDuplicateDelete}
+              onKeepBoth={() => setPendingDuplicate(null)}
+            />
+          )}
         </div>
 
         {/* Filtros */}

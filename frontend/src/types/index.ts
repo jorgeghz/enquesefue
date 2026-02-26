@@ -51,3 +51,26 @@ export interface Token {
   access_token: string
   token_type: string
 }
+
+export interface DuplicateInfo {
+  id: number
+  amount: number
+  currency: string
+  description: string
+  date: string
+  source: string
+}
+
+export interface ExpenseWithDuplicate extends Expense {
+  possible_duplicate: DuplicateInfo | null
+}
+
+export interface PDFExpense extends Expense {
+  is_possible_duplicate: boolean
+}
+
+export interface PDFImportResult {
+  created: number
+  duplicates_count: number
+  expenses: PDFExpense[]
+}

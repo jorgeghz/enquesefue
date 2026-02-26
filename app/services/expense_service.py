@@ -1,6 +1,7 @@
 """
 CRUD y lógica de negocio para gastos.
 """
+import hashlib
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -11,7 +12,60 @@ from sqlalchemy.orm import selectinload
 from app.models.category import Category
 from app.models.expense import Expense
 from app.models.user import User
-from app.schemas.expense import ExpenseParsed
+from app.schemas.expense import DuplicateInfo, ExpenseParsed
+
+
+def compute_file_hash(file_bytes: bytes) -> str:
+    """SHA-256 hex digest de los bytes de un archivo."""
+    return hashlib.sha256(file_bytes).hexdigest()
+
+
+def make_duplicate_info(dup: Expense | None) -> DuplicateInfo | None:
+    """Convierte un Expense en DuplicateInfo para la respuesta API."""
+    if not dup:
+        return None
+    return DuplicateInfo(
+        id=dup.id,
+        amount=float(dup.amount),
+        currency=dup.currency,
+        description=dup.description,
+        date=dup.date,
+        source=dup.source,
+    )
+
+
+async def find_duplicate_by_hash(file_hash: str, user_id: int, db: AsyncSession) -> Expense | None:
+    """Busca un gasto existente con el mismo hash de archivo (mismo archivo re-subido)."""
+    result = await db.execute(
+        select(Expense)
+        .where(Expense.user_id == user_id, Expense.file_hash == file_hash)
+        .options(selectinload(Expense.category))
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def find_duplicate_by_fingerprint(
+    parsed: ExpenseParsed, user_id: int, db: AsyncSession
+) -> Expense | None:
+    """Busca un gasto existente con mismo monto+moneda en ventana de ±1 día (detección cross-source)."""
+    expense_date = parsed.date or datetime.now(timezone.utc)
+    date_min = expense_date - timedelta(days=1)
+    date_max = expense_date + timedelta(days=1)
+    result = await db.execute(
+        select(Expense)
+        .where(
+            Expense.user_id == user_id,
+            Expense.amount == parsed.amount,
+            Expense.currency == parsed.currency,
+            Expense.date >= date_min,
+            Expense.date <= date_max,
+        )
+        .options(selectinload(Expense.category))
+        .order_by(desc(Expense.date))
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_or_create_category(name: str, user_id: int, db: AsyncSession) -> Category:
@@ -29,7 +83,22 @@ async def get_or_create_category(name: str, user_id: int, db: AsyncSession) -> C
     return category
 
 
-async def save_expense(parsed: ExpenseParsed, user: User, source: str, raw_input: str, db: AsyncSession) -> Expense:
+async def save_expense(
+    parsed: ExpenseParsed,
+    user: User,
+    source: str,
+    raw_input: str,
+    db: AsyncSession,
+    file_hash: str | None = None,
+) -> tuple[Expense, Expense | None]:
+    """Guarda el gasto y devuelve (gasto_nuevo, posible_duplicado_o_None)."""
+    # Buscar duplicado: hash primero (lookup exacto), luego huella semántica
+    duplicate: Expense | None = None
+    if file_hash:
+        duplicate = await find_duplicate_by_hash(file_hash, user.id, db)
+    if not duplicate:
+        duplicate = await find_duplicate_by_fingerprint(parsed, user.id, db)
+
     category = await get_or_create_category(parsed.category_name, user.id, db)
 
     expense = Expense(
@@ -41,11 +110,12 @@ async def save_expense(parsed: ExpenseParsed, user: User, source: str, raw_input
         date=parsed.date or datetime.now(timezone.utc),
         source=source,
         raw_input=raw_input,
+        file_hash=file_hash,
     )
     db.add(expense)
     await db.commit()
     await db.refresh(expense)
-    return expense
+    return expense, duplicate
 
 
 async def list_expenses(

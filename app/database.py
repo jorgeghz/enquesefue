@@ -1,5 +1,6 @@
 import ssl
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -36,6 +37,14 @@ async def init_db() -> None:
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Migración idempotente: agregar columna file_hash si no existe (para deployments existentes)
+        await conn.execute(text(
+            "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS file_hash VARCHAR(64)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_expenses_user_file_hash "
+            "ON expenses (user_id, file_hash) WHERE file_hash IS NOT NULL"
+        ))
 
     await _seed_global_categories()
     await _seed_demo_user()

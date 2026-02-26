@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import api from '../api/client'
-import type { Expense } from '../types'
+import type { ExpenseWithDuplicate } from '../types'
 
 interface Props {
-  onExpenseCreated: (expense: Expense) => void
+  onExpenseCreated: (expense: ExpenseWithDuplicate) => void
 }
 
 export default function VoiceRecorder({ onExpenseCreated }: Props) {
@@ -49,7 +49,7 @@ export default function VoiceRecorder({ onExpenseCreated }: Props) {
     try {
       const form = new FormData()
       form.append('file', blob, 'audio.webm')
-      const res = await api.post<Expense>('/upload/audio', form, {
+      const res = await api.post<ExpenseWithDuplicate>('/upload/audio', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       onExpenseCreated(res.data)
