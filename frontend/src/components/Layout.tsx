@@ -26,10 +26,25 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     )
   }
 
+  const bottomNavLink = (to: string, label: string, icon: string) => {
+    const active = location.pathname === to
+    return (
+      <Link
+        to={to}
+        className={`flex flex-col items-center gap-0.5 px-4 py-2 text-xs font-medium transition ${
+          active ? 'text-indigo-600' : 'text-gray-400'
+        }`}
+      >
+        <span className="text-xl">{icon}</span>
+        {label}
+      </Link>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside className="w-60 bg-white border-r border-gray-200 flex flex-col p-4 fixed h-full">
+      {/* Sidebar — solo visible en md+ */}
+      <aside className="hidden md:flex w-60 bg-white border-r border-gray-200 flex-col p-4 fixed h-full z-10">
         <div className="mb-8">
           <h1 className="text-xl font-bold text-gray-900">💸 enquesefue</h1>
           <p className="text-xs text-gray-400 mt-1">{user?.name}</p>
@@ -47,9 +62,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Contenido */}
-      <main className="ml-60 flex-1 p-6">
+      <main className="flex-1 md:ml-60 p-4 md:p-6 pb-20 md:pb-6">
+        {/* Header móvil */}
+        <div className="flex items-center justify-between mb-4 md:hidden">
+          <h1 className="text-lg font-bold text-gray-900">💸 enquesefue</h1>
+          <span className="text-xs text-gray-400">{user?.name}</span>
+        </div>
         {children}
       </main>
+
+      {/* Barra de navegación inferior — solo en móvil */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex md:hidden z-10">
+        {bottomNavLink('/', 'Dashboard', '📊')}
+        {bottomNavLink('/gastos', 'Gastos', '💳')}
+        <button
+          onClick={handleLogout}
+          className="flex flex-col items-center gap-0.5 px-4 py-2 text-xs font-medium text-gray-400 transition flex-1"
+        >
+          <span className="text-xl">🚪</span>
+          Salir
+        </button>
+      </nav>
     </div>
   )
 }

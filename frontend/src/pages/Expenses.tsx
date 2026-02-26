@@ -117,12 +117,12 @@ export default function Expenses() {
           <h3 className="font-semibold text-gray-700 mb-4">Registrar nuevo gasto</h3>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
             {tabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => { setTab(t.key); setPendingDuplicate(null) }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition shrink-0 ${
                   tab === t.key ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
@@ -132,7 +132,7 @@ export default function Expenses() {
           </div>
 
           {tab === 'text' && (
-            <form onSubmit={handleTextSubmit} className="flex gap-3">
+            <form onSubmit={handleTextSubmit} className="flex flex-col sm:flex-row gap-2">
               <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -142,7 +142,7 @@ export default function Expenses() {
               <button
                 type="submit"
                 disabled={submitting || !text.trim()}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition"
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 transition sm:shrink-0"
               >
                 {submitting ? '...' : 'Registrar'}
               </button>
@@ -164,12 +164,12 @@ export default function Expenses() {
         </div>
 
         {/* Filtros */}
-        <div className="flex items-center gap-3 mb-4">
-          <span className="text-sm text-gray-500">{total} gastos</span>
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <span className="text-sm text-gray-500 shrink-0">{total} gastos</span>
           <select
             value={filterCategory}
             onChange={(e) => { setFilterCategory(e.target.value ? Number(e.target.value) : ''); setPage(1) }}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-0 flex-1 sm:flex-none"
           >
             <option value="">Todas las categorías</option>
             {categories.map((c) => (
@@ -190,18 +190,18 @@ export default function Expenses() {
           ) : (
             <div className="divide-y divide-gray-50">
               {expenses.map((e) => (
-                <div key={e.id} className="flex items-center justify-between px-5 py-4 hover:bg-gray-50">
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl">{e.category_emoji ?? '💰'}</span>
-                    <div>
-                      <p className="font-medium text-gray-800">{e.description}</p>
-                      <p className="text-xs text-gray-400">
+                <div key={e.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-xl shrink-0">{e.category_emoji ?? '💰'}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-800 text-sm truncate">{e.description}</p>
+                      <p className="text-xs text-gray-400 truncate">
                         {e.category_name} · {sourceIcon(e.source)} · {new Date(e.date).toLocaleDateString('es-MX')}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold text-gray-900">{formatMoney(e.amount, e.currency)}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-semibold text-gray-900 text-sm">{formatMoney(e.amount, e.currency)}</span>
                     <button
                       onClick={() => handleDelete(e.id)}
                       className="text-gray-300 hover:text-red-500 transition text-lg"

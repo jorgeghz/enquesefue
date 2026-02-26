@@ -37,7 +37,7 @@ export default function Dashboard() {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
 
         {/* KPIs */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
             <p className="text-sm text-gray-500">Total del mes</p>
             <p className="text-3xl font-bold text-indigo-600 mt-1">
@@ -59,7 +59,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           {/* Gráfica de dona */}
           <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
             <h3 className="font-semibold text-gray-700 mb-4">Por categoría</h3>
