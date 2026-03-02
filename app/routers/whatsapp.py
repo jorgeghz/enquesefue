@@ -20,7 +20,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.whatsapp import WhatsAppLinkToken
-from app.services.ai_service import parse_expense_from_text
+from app.services.ai_service import parse_expense_from_text, parse_multiple_expenses_from_text
 from app.services.audio_service import transcribe_audio_bytes
 from app.services.auth_service import register_user
 from app.services.expense_service import (
@@ -265,15 +265,31 @@ async def _handle_media(
         transcription = await transcribe_audio_bytes(media_bytes, mime_type=content_type)
         if not transcription:
             return "❌ No pude transcribir el audio. Intenta de nuevo con más claridad."
-        parsed = await parse_expense_from_text(transcription)
-        if not parsed:
+        parsed_list = await parse_multiple_expenses_from_text(transcription)
+        if not parsed_list:
             return format_expense_error(f"Transcribí: \"{transcription}\"")
-        expense, dup = await save_expense(parsed, user, source="audio", raw_input=transcription, db=db)
-        exp_result = await db.execute(
-            select(ExpenseModel).where(ExpenseModel.id == expense.id).options(_si(ExpenseModel.category))
-        )
-        expense = exp_result.scalar_one()
-        return f"🎤 _{transcription}_\n\n{format_expense_ok(expense, dup)}"
+
+        lines = [f"🎤 _{transcription}_\n"]
+        total = 0.0
+        dup_count = 0
+        currency = "MXN"
+        for parsed in parsed_list:
+            expense, dup = await save_expense(parsed, user, source="audio", raw_input=transcription, db=db)
+            exp_result = await db.execute(
+                select(ExpenseModel).where(ExpenseModel.id == expense.id).options(_si(ExpenseModel.category))
+            )
+            expense = exp_result.scalar_one()
+            total += float(expense.amount)
+            currency = expense.currency
+            if dup:
+                dup_count += 1
+            lines.append(format_expense_ok(expense, dup))
+
+        if len(parsed_list) > 1:
+            lines.append(f"\n💰 *Total: {total:,.2f} {currency}* ({len(parsed_list)} gastos)")
+            if dup_count:
+                lines.append(f"⚠️ {dup_count} posible(s) duplicado(s)")
+        return "\n".join(lines)
 
     # ── PDF ───────────────────────────────────────────────────────────────
     if content_type == "application/pdf":

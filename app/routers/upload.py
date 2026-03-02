@@ -14,7 +14,7 @@ from app.schemas.expense import (
     PDFExpenseOut,
     PDFImportResult,
 )
-from app.services.ai_service import parse_expense_from_text
+from app.services.ai_service import parse_multiple_expenses_from_text
 from app.services.audio_service import transcribe_audio_bytes
 from app.services.expense_service import compute_file_hash, make_duplicate_info, save_expense
 from app.services.pdf_service import parse_bank_statement
@@ -65,8 +65,8 @@ async def upload_image(
     )
 
 
-@router.post("/audio", response_model=ExpenseOutWithDuplicate, status_code=201)
-@limiter.limit("1/minute")
+@router.post("/audio", response_model=PDFImportResult, status_code=201)
+@limiter.limit("20/minute")
 async def upload_audio(
     request: Request,
     file: UploadFile,
@@ -81,21 +81,29 @@ async def upload_audio(
     if not transcription:
         raise HTTPException(status_code=422, detail="No pude transcribir el audio. Intenta de nuevo.")
 
-    parsed = await parse_expense_from_text(transcription)
-    if not parsed:
+    parsed_list = await parse_multiple_expenses_from_text(transcription)
+    if not parsed_list:
         raise HTTPException(
             status_code=422,
-            detail=f"Transcribí: '{transcription}' pero no encontré un gasto. Menciona el monto claramente.",
+            detail=f"Transcribí: '{transcription}' pero no encontré gastos. Menciona los montos claramente.",
         )
 
-    expense, dup = await save_expense(
-        parsed, current_user, source="audio", raw_input=transcription, db=db
-    )
-    expense = await _reload_with_category(expense.id, db)
-    return ExpenseOutWithDuplicate(
-        **ExpenseOut.from_expense(expense).model_dump(),
-        possible_duplicate=make_duplicate_info(dup),
-    )
+    saved: list[PDFExpenseOut] = []
+    dup_count = 0
+    for parsed in parsed_list:
+        expense, dup = await save_expense(
+            parsed, current_user, source="audio", raw_input=transcription, db=db
+        )
+        expense = await _reload_with_category(expense.id, db)
+        is_dup = dup is not None
+        if is_dup:
+            dup_count += 1
+        saved.append(PDFExpenseOut(
+            **ExpenseOut.from_expense(expense).model_dump(),
+            is_possible_duplicate=is_dup,
+        ))
+
+    return PDFImportResult(created=len(saved), duplicates_count=dup_count, expenses=saved)
 
 
 @router.post("/pdf", response_model=PDFImportResult)

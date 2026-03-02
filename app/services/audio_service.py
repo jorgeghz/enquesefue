@@ -39,12 +39,14 @@ async def transcribe_audio_bytes(audio_bytes: bytes, mime_type: str = "audio/web
 
 
 def _mime_to_extension(mime_type: str) -> str:
+    # Normalize: strip codec params (e.g. "audio/webm;codecs=opus" → "audio/webm")
+    base = mime_type.split(";")[0].strip()
     mapping = {
         "audio/webm": "webm",
         "audio/ogg": "ogg",
-        "audio/ogg; codecs=opus": "ogg",
         "audio/mpeg": "mp3",
         "audio/mp4": "m4a",
         "audio/wav": "wav",
+        "audio/x-m4a": "m4a",
     }
-    return mapping.get(mime_type, "webm")
+    return mapping.get(base, "webm")

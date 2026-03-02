@@ -1,20 +1,23 @@
 import { useRef, useState } from 'react'
 import api from '../api/client'
-import type { ExpenseWithDuplicate } from '../types'
+import type { ExpenseWithDuplicate, PDFExpense, PDFImportResult } from '../types'
 
 interface Props {
   onExpenseCreated: (expense: ExpenseWithDuplicate) => void
+  onExpensesCreated?: (expenses: PDFExpense[]) => void
 }
 
-export default function VoiceRecorder({ onExpenseCreated }: Props) {
+export default function VoiceRecorder({ onExpenseCreated, onExpensesCreated }: Props) {
   const [recording, setRecording] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
 
   const startRecording = async () => {
     setError('')
+    setSuccess('')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream)
@@ -46,15 +49,24 @@ export default function VoiceRecorder({ onExpenseCreated }: Props) {
   const uploadAudio = async (blob: Blob) => {
     setLoading(true)
     setError('')
+    setSuccess('')
     try {
       const form = new FormData()
       form.append('file', blob, 'audio.webm')
-      const res = await api.post<ExpenseWithDuplicate>('/upload/audio', form, {
+      const res = await api.post<PDFImportResult>('/upload/audio', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      onExpenseCreated(res.data)
+      const { created, duplicates_count, expenses } = res.data
+      let msg = `✅ ${created} gasto${created !== 1 ? 's' : ''} registrado${created !== 1 ? 's' : ''}`
+      if (duplicates_count > 0) msg += ` (${duplicates_count} posible${duplicates_count !== 1 ? 's' : ''} duplicado${duplicates_count !== 1 ? 's' : ''})`
+      setSuccess(msg)
+      if (onExpensesCreated) {
+        onExpensesCreated(expenses)
+      } else {
+        expenses.forEach((e) => onExpenseCreated({ ...e, possible_duplicate: null }))
+      }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error procesando el audio')
+      setError(err.response?.data?.detail || 'Error procesando el audio. Intenta de nuevo.')
     } finally {
       setLoading(false)
     }
@@ -62,7 +74,7 @@ export default function VoiceRecorder({ onExpenseCreated }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-gray-600">Graba una nota de voz describiendo tu gasto</p>
+      <p className="text-sm text-gray-600">Graba una nota de voz — puedes mencionar varios gastos de distintas fechas</p>
       <div className="flex items-center gap-3">
         {!recording ? (
           <button
@@ -83,6 +95,7 @@ export default function VoiceRecorder({ onExpenseCreated }: Props) {
         {loading && <span className="text-sm text-gray-500">Procesando audio...</span>}
       </div>
       {error && <p className="text-red-500 text-sm">{error}</p>}
+      {success && <p className="text-green-600 text-sm font-medium">{success}</p>}
     </div>
   )
 }
