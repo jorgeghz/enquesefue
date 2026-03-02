@@ -9,18 +9,22 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import init_db
 from app.routers import auth, categories, expenses, stats, upload, whatsapp
+from app.services.scheduler_service import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
     if not settings.openai_api_key or not settings.openai_api_key.startswith("sk-"):
-        import logging
-        logging.getLogger(__name__).warning(
+        _log.warning(
             "OPENAI_API_KEY is missing or invalid (value: %r). AI features will fail.",
             settings.openai_api_key[:8] + "..." if settings.openai_api_key else "(empty)",
         )
     await init_db()
+    start_scheduler()
     yield
+    stop_scheduler()
 
 
 app = FastAPI(

@@ -8,7 +8,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.expense import ExpenseOut
-from app.services.expense_service import get_monthly_summary, get_range_summary, get_weekly_summary
+from app.services.expense_service import get_daily_totals, get_monthly_summary, get_range_summary, get_weekly_summary
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -53,6 +53,18 @@ async def weekly_stats(
     db: AsyncSession = Depends(get_db),
 ):
     return _build_response(await get_weekly_summary(current_user.id, db))
+
+
+@router.get("/daily")
+async def daily_stats(
+    date_from: Date,
+    date_to: Date,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    start = datetime(date_from.year, date_from.month, date_from.day, 0, 0, 0, tzinfo=timezone.utc)
+    end = datetime(date_to.year, date_to.month, date_to.day, 23, 59, 59, tzinfo=timezone.utc)
+    return await get_daily_totals(current_user.id, start, end, db)
 
 
 @router.get("/range", response_model=SummaryResponse)

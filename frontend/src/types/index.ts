@@ -11,6 +11,12 @@ export interface Category {
   id: number
   name: string
   emoji: string
+  user_id?: number | null
+}
+
+export interface DailyStat {
+  date: string
+  total: number
 }
 
 export interface Expense {

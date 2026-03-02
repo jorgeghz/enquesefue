@@ -27,6 +27,9 @@ python-multipart==0.0.20
 python-dotenv==1.0.1
 aiofiles==24.1.0
 
+# Scheduler (weekly WhatsApp summaries)
+apscheduler==3.10.4
+
 # Testing
 pytest==8.3.4
 pytest-asyncio==0.25.2

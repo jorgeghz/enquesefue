@@ -2,10 +2,10 @@
 CRUD y lógica de negocio para gastos.
 """
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import date as PyDate, datetime, timedelta, timezone
 from decimal import Decimal
 
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import Date as SQLDate, and_, cast, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -160,6 +160,57 @@ async def delete_expense(expense_id: int, user_id: int, db: AsyncSession) -> boo
     await db.delete(expense)
     await db.commit()
     return True
+
+
+async def update_expense(
+    expense_id: int,
+    user_id: int,
+    data: dict,
+    db: AsyncSession,
+) -> Expense | None:
+    result = await db.execute(
+        select(Expense).where(Expense.id == expense_id, Expense.user_id == user_id)
+    )
+    expense = result.scalar_one_or_none()
+    if not expense:
+        return None
+    if "description" in data and data["description"] is not None:
+        expense.description = data["description"]
+    if "amount" in data and data["amount"] is not None:
+        expense.amount = Decimal(str(data["amount"]))
+    if "currency" in data and data["currency"] is not None:
+        expense.currency = data["currency"]
+    if "category_id" in data and data["category_id"] is not None:
+        expense.category_id = data["category_id"]
+    if "date" in data and data["date"] is not None:
+        expense.date = data["date"]
+    await db.commit()
+    result = await db.execute(
+        select(Expense).where(Expense.id == expense_id).options(selectinload(Expense.category))
+    )
+    return result.scalar_one()
+
+
+async def get_daily_totals(user_id: int, start: datetime, end: datetime, db: AsyncSession) -> list[dict]:
+    result = await db.execute(
+        select(
+            cast(Expense.date, SQLDate).label("day"),
+            func.sum(Expense.amount).label("total"),
+        )
+        .where(Expense.user_id == user_id, Expense.date >= start, Expense.date <= end)
+        .group_by("day")
+        .order_by("day")
+    )
+    rows = result.all()
+    by_date = {str(row.day): float(row.total) for row in rows}
+
+    out: list[dict] = []
+    current_day: PyDate = start.date()
+    end_day: PyDate = end.date()
+    while current_day <= end_day:
+        out.append({"date": str(current_day), "total": by_date.get(str(current_day), 0.0)})
+        current_day += timedelta(days=1)
+    return out
 
 
 async def get_monthly_summary(user_id: int, db: AsyncSession) -> dict:

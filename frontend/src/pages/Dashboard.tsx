@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import {
+  Bar, BarChart, Cell, Legend, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts'
 import api from '../api/client'
 import DateRangePicker, { getRangeForPreset } from '../components/DateRangePicker'
 import Layout from '../components/Layout'
-import type { Expense, SummaryResponse } from '../types'
+import type { DailyStat, Expense, SummaryResponse } from '../types'
 
 const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#ec4899']
 
@@ -13,6 +16,22 @@ function formatMoney(amount: number, currency = 'MXN') {
 
 function sourceIcon(source: string) {
   return { text: '✍️', audio: '🎤', image: '📷', pdf: '📄' }[source] ?? '📝'
+}
+
+function fmtDate(d: Date): string {
+  return d.toISOString().split('T')[0]
+}
+
+/** Computes the previous period of equal length immediately before the current one. */
+function getPreviousPeriod(from: string, to: string) {
+  const f = new Date(from)
+  const t = new Date(to)
+  const days = Math.round((t.getTime() - f.getTime()) / 86400000)
+  const prevTo = new Date(f)
+  prevTo.setDate(prevTo.getDate() - 1)
+  const prevFrom = new Date(prevTo)
+  prevFrom.setDate(prevFrom.getDate() - days)
+  return { from: fmtDate(prevFrom), to: fmtDate(prevTo) }
 }
 
 const defaultRange = getRangeForPreset('this_month')
@@ -28,6 +47,8 @@ const PRESET_LABELS: Record<string, string> = {
 
 export default function Dashboard() {
   const [summary, setSummary] = useState<SummaryResponse | null>(null)
+  const [prevTotal, setPrevTotal] = useState<number | null>(null)
+  const [daily, setDaily] = useState<DailyStat[]>([])
   const [loading, setLoading] = useState(true)
   const [preset, setPreset] = useState('this_month')
   const [from, setFrom] = useState(defaultRange.from)
@@ -42,14 +63,34 @@ export default function Dashboard() {
   useEffect(() => {
     if (!from || !to) return
     setLoading(true)
-    api.get<SummaryResponse>('/stats/range', { params: { date_from: from, date_to: to } })
-      .then((r) => setSummary(r.data))
-      .finally(() => setLoading(false))
+
+    const prev = getPreviousPeriod(from, to)
+
+    Promise.all([
+      api.get<SummaryResponse>('/stats/range', { params: { date_from: from, date_to: to } }),
+      api.get<SummaryResponse>('/stats/range', { params: { date_from: prev.from, date_to: prev.to } }),
+      api.get<DailyStat[]>('/stats/daily', { params: { date_from: from, date_to: to } }),
+    ]).then(([curr, prev, dailyRes]) => {
+      setSummary(curr.data)
+      setPrevTotal(prev.data.total)
+      setDaily(dailyRes.data)
+    }).finally(() => setLoading(false))
   }, [from, to])
 
   const pieData = summary?.by_category.map((c) => ({ name: `${c.emoji} ${c.name}`, value: c.total })) ?? []
   const topCategory = summary?.by_category[0]
   const periodLabel = PRESET_LABELS[preset] ?? 'Período'
+
+  const delta = prevTotal != null && prevTotal > 0
+    ? ((summary?.total ?? 0) - prevTotal) / prevTotal * 100
+    : null
+
+  // Format daily chart labels: "1 mar", "15 mar"
+  const barData = daily.map((d) => {
+    const dt = new Date(d.date + 'T12:00:00')
+    const label = dt.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+    return { label, total: d.total }
+  })
 
   return (
     <Layout>
@@ -72,22 +113,33 @@ export default function Dashboard() {
                 <p className="text-3xl font-bold text-indigo-600 mt-1">
                   {formatMoney(summary?.total ?? 0)}
                 </p>
+                {delta !== null && (
+                  <p className={`text-xs mt-1 font-medium ${delta > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                    {delta > 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(0)}% vs período anterior
+                  </p>
+                )}
               </div>
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                 <p className="text-sm text-gray-500">Gastos registrados</p>
-                <p className="text-3xl font-bold text-gray-900 mt-1">
-                  {summary?.count ?? 0}
-                </p>
+                <p className="text-3xl font-bold text-gray-900 mt-1">{summary?.count ?? 0}</p>
+                {prevTotal !== null && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Período anterior: {formatMoney(prevTotal)}
+                  </p>
+                )}
               </div>
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                 <p className="text-sm text-gray-500">Categoría top</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
                   {topCategory ? `${topCategory.emoji} ${topCategory.name}` : '—'}
                 </p>
+                {topCategory && (
+                  <p className="text-xs text-gray-400 mt-1">{formatMoney(topCategory.total)}</p>
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               {/* Gráfica de dona */}
               <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                 <h3 className="font-semibold text-gray-700 mb-4">Por categoría</h3>
@@ -136,6 +188,37 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
+
+            {/* Tendencia diaria */}
+            {barData.length > 0 && barData.some((d) => d.total > 0) && (
+              <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 mb-6">
+                <h3 className="font-semibold text-gray-700 mb-4">Tendencia diaria</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={barData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: '#9ca3af' }}
+                      tickLine={false}
+                      axisLine={false}
+                      interval={barData.length > 15 ? Math.floor(barData.length / 10) : 0}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: '#9ca3af' }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(v) => `$${(v / 1000).toFixed(v >= 1000 ? 0 : 1)}k`.replace('.0k', 'k')}
+                      width={48}
+                    />
+                    <Tooltip
+                      formatter={(v: number | undefined) => [formatMoney(Number(v ?? 0)), 'Gasto']}
+                      labelStyle={{ fontSize: 12, color: '#374151' }}
+                      contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
+                    />
+                    <Bar dataKey="total" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
 
             {/* Últimos gastos */}
             <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">

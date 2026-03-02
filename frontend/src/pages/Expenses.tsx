@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import api from '../api/client'
 import DateRangePicker from '../components/DateRangePicker'
 import DuplicateWarning from '../components/DuplicateWarning'
+import EditExpenseModal from '../components/EditExpenseModal'
 import FileUpload from '../components/FileUpload'
 import Layout from '../components/Layout'
 import VoiceRecorder from '../components/VoiceRecorder'
-import type { Category, DuplicateInfo, ExpenseListResponse, ExpenseWithDuplicate } from '../types'
+import type { Category, DuplicateInfo, Expense, ExpenseListResponse, ExpenseWithDuplicate } from '../types'
 
 type Tab = 'text' | 'voice' | 'file'
 
@@ -29,6 +30,7 @@ export default function Expenses() {
   const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('text')
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
 
   // Formulario texto
   const [text, setText] = useState('')
@@ -62,6 +64,24 @@ export default function Expenses() {
     setDateFrom(p === 'all' ? '' : f)
     setDateTo(p === 'all' ? '' : t)
     setPage(1)
+  }
+
+  const handleExport = () => {
+    const params = new URLSearchParams()
+    if (dateFrom) params.set('date_from', dateFrom + 'T00:00:00')
+    if (dateTo) params.set('date_to', dateTo + 'T23:59:59')
+    if (filterCategory) params.set('category_id', String(filterCategory))
+    const token = localStorage.getItem('token')
+    const url = `/api/expenses/export?${params}`
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.blob())
+      .then((blob) => {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = 'gastos.csv'
+        a.click()
+        URL.revokeObjectURL(a.href)
+      })
   }
 
   useEffect(() => {
@@ -112,6 +132,11 @@ export default function Expenses() {
     setExpenses((prev) => prev.filter((e) => e.id !== pendingDuplicate.newId))
     setTotal((t) => t - 1)
     setPendingDuplicate(null)
+  }
+
+  const handleEditSaved = (updated: Expense) => {
+    setExpenses((prev) => prev.map((e) => e.id === updated.id ? { ...updated, possible_duplicate: null } : e))
+    setEditingExpense(null)
   }
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
@@ -197,6 +222,13 @@ export default function Expenses() {
                 <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
               ))}
             </select>
+            <button
+              onClick={handleExport}
+              className="shrink-0 px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition flex items-center gap-1"
+              title="Exportar como CSV"
+            >
+              ⬇️ CSV
+            </button>
           </div>
         </div>
 
@@ -224,6 +256,13 @@ export default function Expenses() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-semibold text-gray-900 text-sm">{formatMoney(e.amount, e.currency)}</span>
+                    <button
+                      onClick={() => setEditingExpense(e)}
+                      className="text-gray-300 hover:text-indigo-500 transition text-base"
+                      title="Editar"
+                    >
+                      ✏️
+                    </button>
                     <button
                       onClick={() => handleDelete(e.id)}
                       className="text-gray-300 hover:text-red-500 transition text-lg"
@@ -259,6 +298,15 @@ export default function Expenses() {
           </div>
         )}
       </div>
+
+      {editingExpense && (
+        <EditExpenseModal
+          expense={editingExpense}
+          categories={categories}
+          onSave={handleEditSaved}
+          onClose={() => setEditingExpense(null)}
+        />
+      )}
     </Layout>
   )
 }

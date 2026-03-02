@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '../api/client'
 import Layout from '../components/Layout'
 import { useAuth } from '../hooks/useAuth'
+import type { Category } from '../types'
 
 interface LinkPinResponse {
   pin: string
@@ -15,6 +16,63 @@ export default function Settings() {
   const [pinError, setPinError] = useState('')
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [copied, setCopied] = useState(false)
+
+  // Categorías personalizadas
+  const [categories, setCategories] = useState<Category[]>([])
+  const [editingCat, setEditingCat] = useState<number | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editEmoji, setEditEmoji] = useState('')
+  const [newName, setNewName] = useState('')
+  const [newEmoji, setNewEmoji] = useState('💰')
+  const [catError, setCatError] = useState('')
+  const [showNewForm, setShowNewForm] = useState(false)
+
+  useEffect(() => {
+    api.get<Category[]>('/categories').then((r) => setCategories(r.data))
+  }, [])
+
+  const userCategories = categories.filter((c) => c.user_id != null)
+
+  const handleCreateCategory = async () => {
+    if (!newName.trim()) return
+    setCatError('')
+    try {
+      const res = await api.post<Category>('/categories', { name: newName.trim(), emoji: newEmoji })
+      setCategories((prev) => [...prev, res.data])
+      setNewName('')
+      setNewEmoji('💰')
+      setShowNewForm(false)
+    } catch (err: any) {
+      setCatError(err.response?.data?.detail || 'Error al crear la categoría')
+    }
+  }
+
+  const handleUpdateCategory = async (id: number) => {
+    try {
+      const res = await api.patch<Category>(`/categories/${id}`, { name: editName.trim(), emoji: editEmoji })
+      setCategories((prev) => prev.map((c) => (c.id === id ? res.data : c)))
+      setEditingCat(null)
+    } catch (err: any) {
+      setCatError(err.response?.data?.detail || 'Error al actualizar')
+    }
+  }
+
+  const handleDeleteCategory = async (id: number) => {
+    if (!confirm('¿Eliminar esta categoría? Los gastos asociados quedarán sin categoría.')) return
+    try {
+      await api.delete(`/categories/${id}`)
+      setCategories((prev) => prev.filter((c) => c.id !== id))
+    } catch {
+      setCatError('Error al eliminar la categoría')
+    }
+  }
+
+  const startEdit = (c: Category) => {
+    setEditingCat(c.id)
+    setEditName(c.name)
+    setEditEmoji(c.emoji)
+    setCatError('')
+  }
 
   // Cuenta regresiva del PIN
   useEffect(() => {
@@ -180,6 +238,103 @@ export default function Settings() {
                   ⚠️ Evita enviar contraseñas importantes por mensajes de texto.
                 </p>
               </div>
+            </div>
+          )}
+        </div>
+        {/* ── Tarjeta: Categorías personalizadas ─────────────────────── */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Categorías personalizadas</h3>
+            <button
+              onClick={() => { setShowNewForm((v) => !v); setCatError('') }}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded-lg px-3 py-1.5 hover:bg-indigo-50 transition"
+            >
+              {showNewForm ? 'Cancelar' : '+ Nueva'}
+            </button>
+          </div>
+
+          {catError && <p className="text-xs text-red-500 mb-3">{catError}</p>}
+
+          {showNewForm && (
+            <div className="flex gap-2 mb-4 items-center">
+              <input
+                value={newEmoji}
+                onChange={(e) => setNewEmoji(e.target.value)}
+                className="w-12 border border-gray-300 rounded-lg px-2 py-1.5 text-center text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="💰"
+                maxLength={2}
+              />
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Nombre de la categoría"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
+              />
+              <button
+                onClick={handleCreateCategory}
+                disabled={!newName.trim()}
+                className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
+              >
+                Crear
+              </button>
+            </div>
+          )}
+
+          {userCategories.length === 0 ? (
+            <p className="text-sm text-gray-400">Aún no tienes categorías personalizadas.</p>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {userCategories.map((c) => (
+                <div key={c.id} className="py-2.5">
+                  {editingCat === c.id ? (
+                    <div className="flex gap-2 items-center">
+                      <input
+                        value={editEmoji}
+                        onChange={(e) => setEditEmoji(e.target.value)}
+                        className="w-12 border border-gray-300 rounded-lg px-2 py-1 text-center text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        maxLength={2}
+                      />
+                      <input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        onKeyDown={(e) => e.key === 'Enter' && handleUpdateCategory(c.id)}
+                      />
+                      <button
+                        onClick={() => handleUpdateCategory(c.id)}
+                        className="text-xs text-indigo-600 font-medium hover:text-indigo-800"
+                      >
+                        Guardar
+                      </button>
+                      <button
+                        onClick={() => setEditingCat(null)}
+                        className="text-xs text-gray-400 hover:text-gray-600"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-800">{c.emoji} {c.name}</span>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => startEdit(c)}
+                          className="text-xs text-gray-400 hover:text-indigo-600 transition"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCategory(c.id)}
+                          className="text-xs text-gray-400 hover:text-red-500 transition"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

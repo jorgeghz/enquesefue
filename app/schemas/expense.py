@@ -55,6 +55,14 @@ class CreateExpenseRequest(BaseModel):
     text: str
 
 
+class EditExpenseRequest(BaseModel):
+    description: str | None = None
+    amount: float | None = None
+    currency: str | None = None
+    category_id: int | None = None
+    date: datetime | None = None
+
+
 class DuplicateInfo(BaseModel):
     id: int
     amount: float
