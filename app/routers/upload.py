@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.limiter import limiter
 from app.models.expense import Expense as ExpenseModel
 from app.models.user import User
 from app.schemas.expense import (
@@ -32,7 +33,9 @@ async def _reload_with_category(expense_id: int, db: AsyncSession) -> ExpenseMod
 
 
 @router.post("/image", response_model=ExpenseOutWithDuplicate, status_code=201)
+@limiter.limit("1/minute")
 async def upload_image(
+    request: Request,
     file: UploadFile,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -63,7 +66,9 @@ async def upload_image(
 
 
 @router.post("/audio", response_model=ExpenseOutWithDuplicate, status_code=201)
+@limiter.limit("1/minute")
 async def upload_audio(
+    request: Request,
     file: UploadFile,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -94,7 +99,9 @@ async def upload_audio(
 
 
 @router.post("/pdf", response_model=PDFImportResult)
+@limiter.limit("1/minute")
 async def upload_pdf(
+    request: Request,
     file: UploadFile,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),

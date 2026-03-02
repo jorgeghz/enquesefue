@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push origin main)",
+      "Bash(pip install slowapi==0.1.9 -q)"
+    ]
+  }
+}

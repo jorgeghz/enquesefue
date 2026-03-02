@@ -46,6 +46,7 @@ from app.services.whatsapp_service import (
     send_message,
     validate_twilio_signature,
 )
+from app.limiter import limiter
 from app.schemas.user import UserCreate
 
 router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
@@ -60,6 +61,7 @@ _COMMANDS = {"resumen", "semana", "últimos", "ultimos", "ayuda", "help"}
 # ---------------------------------------------------------------------------
 
 @router.post("/webhook", status_code=200)
+@limiter.limit("1/minute")
 async def whatsapp_webhook(
     request: Request,
     From: str = Form(...),
@@ -304,7 +306,9 @@ class LinkPinResponse(BaseModel):
 
 
 @router.post("/link-pin", response_model=LinkPinResponse)
+@limiter.limit("1/minute")
 async def generate_link_pin(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

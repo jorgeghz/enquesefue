@@ -3,7 +3,7 @@ import io
 import math
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.limiter import limiter
 from app.models.expense import Expense as ExpenseModel
 from app.models.user import User
 from app.schemas.expense import (
@@ -93,7 +94,9 @@ async def get_expenses(
 
 
 @router.post("", response_model=ExpenseOutWithDuplicate, status_code=201)
+@limiter.limit("1/minute")
 async def create_expense(
+    request: Request,
     body: CreateExpenseRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
