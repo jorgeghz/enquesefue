@@ -227,13 +227,29 @@ async def _handle_media(
     from sqlalchemy.orm import selectinload as _si
     from app.services.expense_service import compute_file_hash
 
-    media_bytes = await download_media(media_url)
+    try:
+        media_bytes = await download_media(media_url)
+    except Exception as e:
+        logger.error("Error descargando media de Twilio (url=%s): %s", media_url, e)
+        return "❌ No pude descargar el archivo. Intenta enviarlo de nuevo."
+
+    logger.info("Media descargada: content_type=%s size=%d bytes", content_type, len(media_bytes))
+
+    if len(media_bytes) == 0:
+        return "❌ El archivo llegó vacío. Intenta enviarlo de nuevo."
 
     # ── Imagen ────────────────────────────────────────────────────────────
     if content_type.startswith("image/"):
         parsed = await analyze_receipt_bytes(media_bytes, mime_type=content_type, caption=caption)
         if not parsed:
-            return "❌ No pude leer el ticket. Asegúrate de que la imagen sea clara y muestre el monto total."
+            return (
+                "❌ No pude identificar un monto en la imagen.\n\n"
+                "Consejos:\n"
+                "• Asegúrate de que el monto total sea visible\n"
+                "• Toma la foto con buena iluminación\n"
+                "• Evita imágenes borrosas o muy oscuras\n"
+                "• También puedes escribir el gasto en texto: _\"gasté 250 en el super\"_"
+            )
         file_hash = compute_file_hash(media_bytes)
         expense, dup = await save_expense(parsed, user, source="image", raw_input="imagen", db=db, file_hash=file_hash)
         exp_result = await db.execute(

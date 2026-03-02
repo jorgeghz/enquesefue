@@ -14,17 +14,25 @@ from app.services.ai_service import CATEGORIES, client
 
 logger = logging.getLogger(__name__)
 
-VISION_SYSTEM_PROMPT = f"""Eres un asistente experto en analizar tickets y recibos de compra.
-Analiza la imagen y extrae la información del gasto. Devuelve un JSON con:
-- amount: monto total del ticket/recibo (número decimal, sin símbolo de moneda)
-- currency: código ISO 4217 (por defecto "MXN")
-- description: descripción concisa del gasto (máximo 100 caracteres, ej: "Supermercado Walmart")
-- category_name: una de las siguientes categorías: {", ".join(CATEGORIES)}
-- date: fecha del ticket en formato ISO 8601 si está visible, si no usa null
-- merchant: nombre del comercio si está visible, si no usa null
+VISION_SYSTEM_PROMPT = f"""Eres un asistente experto en identificar gastos a partir de imágenes.
+Acepta cualquier imagen que muestre información de una compra o pago:
+tickets físicos, recibos impresos, facturas, pantallas de apps de pago (Clip, Mercado Pago,
+CoDi, SPEI, etc.), comprobantes digitales, notas de consumo, etc.
 
-Si la imagen NO es un ticket o recibo, devuelve {{"error": "not_a_receipt"}}.
-Si no puedes leer el monto total, devuelve {{"error": "no_amount"}}.
+Extrae la información del gasto y devuelve un JSON con:
+- amount: monto total pagado (número decimal, sin símbolo de moneda). Si hay varios subtotales,
+  usa el TOTAL final. Si ves un precio claramente aunque no sea el total, úsalo.
+- currency: código ISO 4217 (por defecto "MXN" si no se especifica)
+- description: descripción corta del gasto (máximo 100 caracteres, ej: "Supermercado Walmart")
+- category_name: una de las siguientes categorías: {", ".join(CATEGORIES)}
+- date: fecha visible en la imagen en formato ISO 8601, o null si no aparece
+- merchant: nombre del comercio o app si está visible, o null
+
+Solo devuelve {{"error": "not_a_receipt"}} si la imagen NO muestra absolutamente ningún precio,
+monto o información de pago (ej: foto de una persona, paisaje, etc.).
+Solo devuelve {{"error": "no_amount"}} si claramente es una compra pero el monto está
+completamente ilegible o cortado de la imagen.
+En caso de duda, intenta extraer el mejor monto que puedas leer.
 Responde ÚNICAMENTE con el JSON, sin texto adicional.
 """
 
@@ -66,7 +74,7 @@ async def analyze_receipt_bytes(image_bytes: bytes, mime_type: str = "image/jpeg
         data = json.loads(raw)
 
         if "error" in data:
-            logger.info("Vision API indicó error: %s", data["error"])
+            logger.warning("Vision API rechazó la imagen: %s | raw=%s", data["error"], raw[:200])
             return None
 
         date = today
@@ -90,7 +98,7 @@ async def analyze_receipt_bytes(image_bytes: bytes, mime_type: str = "image/jpeg
         )
 
     except (json.JSONDecodeError, KeyError, InvalidOperation) as e:
-        logger.error("Error parseando respuesta de vision: %s", e)
+        logger.error("Error parseando respuesta de vision: %s | raw=%s", e, locals().get("raw", ""))
         return None
     except Exception as e:
         logger.exception("Error inesperado en vision_service: %s", e)
