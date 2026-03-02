@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../api/client'
+import DateRangePicker from '../components/DateRangePicker'
 import DuplicateWarning from '../components/DuplicateWarning'
 import FileUpload from '../components/FileUpload'
 import Layout from '../components/Layout'
@@ -23,6 +24,9 @@ export default function Expenses() {
   const [pages, setPages] = useState(1)
   const [categories, setCategories] = useState<Category[]>([])
   const [filterCategory, setFilterCategory] = useState<number | ''>('')
+  const [datePreset, setDatePreset] = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('text')
 
@@ -42,6 +46,8 @@ export default function Expenses() {
     try {
       const params: Record<string, unknown> = { page: p, limit: 15 }
       if (filterCategory) params.category_id = filterCategory
+      if (dateFrom) params.date_from = dateFrom + 'T00:00:00'
+      if (dateTo) params.date_to = dateTo + 'T23:59:59'
       const res = await api.get<ExpenseListResponse>('/expenses', { params })
       setExpenses(res.data.items.map((e) => ({ ...e, possible_duplicate: null })))
       setTotal(res.data.total)
@@ -51,13 +57,20 @@ export default function Expenses() {
     }
   }
 
+  const handleDateRangeChange = (p: string, f: string, t: string) => {
+    setDatePreset(p)
+    setDateFrom(p === 'all' ? '' : f)
+    setDateTo(p === 'all' ? '' : t)
+    setPage(1)
+  }
+
   useEffect(() => {
     api.get<Category[]>('/categories').then((r) => setCategories(r.data))
   }, [])
 
   useEffect(() => {
     fetchExpenses(page)
-  }, [page, filterCategory])
+  }, [page, filterCategory, dateFrom, dateTo])
 
   const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -164,18 +177,27 @@ export default function Expenses() {
         </div>
 
         {/* Filtros */}
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          <span className="text-sm text-gray-500 shrink-0">{total} gastos</span>
-          <select
-            value={filterCategory}
-            onChange={(e) => { setFilterCategory(e.target.value ? Number(e.target.value) : ''); setPage(1) }}
-            className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-0 flex-1 sm:flex-none"
-          >
-            <option value="">Todas las categorías</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
-            ))}
-          </select>
+        <div className="space-y-3 mb-4">
+          <DateRangePicker
+            preset={datePreset}
+            from={dateFrom}
+            to={dateTo}
+            onChange={handleDateRangeChange}
+            includeAll
+          />
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-gray-500 shrink-0">{total} gastos</span>
+            <select
+              value={filterCategory}
+              onChange={(e) => { setFilterCategory(e.target.value ? Number(e.target.value) : ''); setPage(1) }}
+              className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-0 flex-1 sm:flex-none"
+            >
+              <option value="">Todas las categorías</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Lista */}

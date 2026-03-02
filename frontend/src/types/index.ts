@@ -42,6 +42,7 @@ export interface CategoryStat {
 
 export interface SummaryResponse {
   total: number
+  count: number
   by_category: CategoryStat[]
   recent: Expense[]
   start: string

@@ -174,6 +174,10 @@ async def get_weekly_summary(user_id: int, db: AsyncSession) -> dict:
     return await _summary_for_period(user_id, start, now, db)
 
 
+async def get_range_summary(user_id: int, start: datetime, end: datetime, db: AsyncSession) -> dict:
+    return await _summary_for_period(user_id, start, end, db)
+
+
 async def _summary_for_period(user_id: int, start: datetime, end: datetime, db: AsyncSession) -> dict:
     total_result = await db.execute(
         select(func.sum(Expense.amount)).where(
@@ -181,6 +185,13 @@ async def _summary_for_period(user_id: int, start: datetime, end: datetime, db: 
         )
     )
     total = total_result.scalar() or Decimal("0")
+
+    count_result = await db.execute(
+        select(func.count()).where(
+            Expense.user_id == user_id, Expense.date >= start, Expense.date <= end,
+        )
+    )
+    count = count_result.scalar() or 0
 
     cat_result = await db.execute(
         select(Category.name, Category.emoji, func.sum(Expense.amount).label("subtotal"))
@@ -205,6 +216,7 @@ async def _summary_for_period(user_id: int, start: datetime, end: datetime, db: 
 
     return {
         "total": float(total),
+        "count": count,
         "by_category": by_category,
         "recent": recent,
         "start": start,
