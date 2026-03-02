@@ -80,6 +80,10 @@ async def parse_bank_statement(pdf_bytes: bytes, today: datetime | None = None) 
 
         response = await asyncio.to_thread(_call)
         raw = response.choices[0].message.content.strip()
+        if raw.startswith("```"):
+            lines = raw.split("\n")
+            raw = "\n".join(lines[1:-1] if lines and lines[-1].strip() == "```" else lines[1:])
+            raw = raw.strip()
         transactions = json.loads(raw)
 
         if not isinstance(transactions, list):

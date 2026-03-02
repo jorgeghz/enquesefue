@@ -71,6 +71,12 @@ async def analyze_receipt_bytes(image_bytes: bytes, mime_type: str = "image/jpeg
 
         response = await asyncio.to_thread(_call)
         raw = response.choices[0].message.content.strip()
+        # GPT-4o a veces envuelve el JSON en markdown code fences (```json ... ```)
+        if raw.startswith("```"):
+            lines = raw.split("\n")
+            raw = "\n".join(lines[1:-1] if lines and lines[-1].strip() == "```" else lines[1:])
+            raw = raw.strip()
+        logger.debug("Vision raw response: %s", raw[:300])
         data = json.loads(raw)
 
         if "error" in data:
