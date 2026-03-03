@@ -3,6 +3,7 @@ export interface User {
   email: string
   name: string
   currency: string
+  timezone: string
   whatsapp_phone: string | null
   created_at: string
 }

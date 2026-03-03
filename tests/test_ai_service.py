@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 from decimal import Decimal
 from unittest.mock import MagicMock, patch
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -64,4 +65,5 @@ async def test_parse_expense_with_date():
     assert result is not None
     assert result.amount == Decimal("80.0")
     assert result.category_name == "Transporte"
-    assert result.date == datetime(2026, 2, 20, 14, 0, 0)
+    # Dates are normalized to noon in the configured timezone, regardless of what GPT returns
+    assert result.date == datetime(2026, 2, 20, 12, 0, 0, tzinfo=ZoneInfo("America/Mexico_City"))

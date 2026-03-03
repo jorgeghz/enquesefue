@@ -47,7 +47,7 @@ async def upload_image(
     if len(image_bytes) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="Imagen demasiado grande (máximo 20 MB)")
 
-    parsed = await analyze_receipt_bytes(image_bytes, mime_type=file.content_type)
+    parsed = await analyze_receipt_bytes(image_bytes, mime_type=file.content_type, tz_name=current_user.timezone)
     if not parsed:
         raise HTTPException(
             status_code=422,
@@ -81,7 +81,7 @@ async def upload_audio(
     if not transcription:
         raise HTTPException(status_code=422, detail="No pude transcribir el audio. Intenta de nuevo.")
 
-    parsed_list = await parse_multiple_expenses_from_text(transcription)
+    parsed_list = await parse_multiple_expenses_from_text(transcription, tz_name=current_user.timezone)
     if not parsed_list:
         raise HTTPException(
             status_code=422,
@@ -121,7 +121,7 @@ async def upload_pdf(
     if len(pdf_bytes) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="PDF demasiado grande (máximo 20 MB)")
 
-    transactions = await parse_bank_statement(pdf_bytes)
+    transactions = await parse_bank_statement(pdf_bytes, tz_name=current_user.timezone)
     if not transactions:
         raise HTTPException(
             status_code=422,

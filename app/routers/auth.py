@@ -7,8 +7,9 @@ from app.dependencies import get_current_user
 from app.limiter import limiter
 from app.models.user import User
 from app.schemas.auth import LoginRequest, Token
-from app.schemas.user import UserCreate, UserOut
+from app.schemas.user import UserCreate, UserOut, UserUpdate
 from app.services.auth_service import authenticate_user, create_access_token, register_user
+from app.utils.tz import is_valid_timezone
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -38,4 +39,19 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
 
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me", response_model=UserOut)
+async def update_me(
+    body: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if body.timezone is not None:
+        if not is_valid_timezone(body.timezone):
+            raise HTTPException(status_code=400, detail="Zona horaria inválida")
+        current_user.timezone = body.timezone
+    await db.commit()
+    await db.refresh(current_user)
     return current_user

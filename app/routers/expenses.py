@@ -102,7 +102,7 @@ async def create_expense(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        parsed = await parse_expense_from_text(body.text)
+        parsed = await parse_expense_from_text(body.text, tz_name=current_user.timezone)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al procesar el gasto: {e}")
     if not parsed:

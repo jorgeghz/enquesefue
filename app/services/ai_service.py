@@ -11,6 +11,7 @@ from openai import OpenAI
 
 from app.config import settings
 from app.schemas.expense import ExpenseParsed
+from app.utils.tz import normalize_expense_date, now_local
 
 logger = logging.getLogger(__name__)
 client = OpenAI(api_key=settings.openai_api_key)
@@ -49,12 +50,14 @@ Ejemplo: [{{"amount": 150, "currency": "MXN", "description": "Tacos", "category_
 """
 
 
-async def parse_expense_from_text(text: str, today: datetime | None = None) -> ExpenseParsed | None:
+async def parse_expense_from_text(
+    text: str, today: datetime | None = None, tz_name: str = settings.app_timezone
+) -> ExpenseParsed | None:
     """
     Extrae datos de un gasto a partir de texto libre.
     Retorna None si el texto no contiene un gasto reconocible.
     """
-    today = today or datetime.now()
+    today = today or now_local(tz_name)
 
     def _call() -> str:
         response = client.chat.completions.create(
@@ -79,7 +82,7 @@ async def parse_expense_from_text(text: str, today: datetime | None = None) -> E
         if "error" in data:
             return None
 
-        date = None
+        date = today
         if data.get("date"):
             try:
                 date = datetime.fromisoformat(data["date"])
@@ -91,7 +94,7 @@ async def parse_expense_from_text(text: str, today: datetime | None = None) -> E
             currency=data.get("currency", "MXN"),
             description=data["description"],
             category_name=data.get("category_name", "Otros"),
-            date=date or today,
+            date=normalize_expense_date(date, tz_name),
         )
 
     except (json.JSONDecodeError, KeyError, InvalidOperation) as e:
@@ -100,13 +103,13 @@ async def parse_expense_from_text(text: str, today: datetime | None = None) -> E
 
 
 async def parse_multiple_expenses_from_text(
-    text: str, today: datetime | None = None
+    text: str, today: datetime | None = None, tz_name: str = settings.app_timezone
 ) -> list[ExpenseParsed]:
     """
     Extrae uno o varios gastos de texto libre (ideal para notas de voz).
     Retorna lista vacía si no se identifican gastos.
     """
-    today = today or datetime.now()
+    today = today or now_local(tz_name)
 
     def _call() -> str:
         response = client.chat.completions.create(
@@ -133,7 +136,7 @@ async def parse_multiple_expenses_from_text(
         results: list[ExpenseParsed] = []
         for item in items:
             try:
-                date = None
+                date = today
                 if item.get("date"):
                     try:
                         date = datetime.fromisoformat(item["date"])
@@ -144,7 +147,7 @@ async def parse_multiple_expenses_from_text(
                     currency=item.get("currency", "MXN"),
                     description=item["description"],
                     category_name=item.get("category_name", "Otros"),
-                    date=date or today,
+                    date=normalize_expense_date(date, tz_name),
                 ))
             except (KeyError, InvalidOperation) as e:
                 logger.warning("Saltando gasto malformado en respuesta multi: %s | item: %s", e, item)

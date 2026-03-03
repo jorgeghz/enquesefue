@@ -9,8 +9,10 @@ import logging
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
+from app.config import settings
 from app.schemas.expense import ExpenseParsed
 from app.services.ai_service import CATEGORIES, client
+from app.utils.tz import normalize_expense_date, now_local
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +39,19 @@ Responde ÚNICAMENTE con el JSON, sin texto adicional.
 """
 
 
-async def analyze_receipt_bytes(image_bytes: bytes, mime_type: str = "image/jpeg", caption: str = "", today: datetime | None = None) -> ExpenseParsed | None:
+async def analyze_receipt_bytes(
+    image_bytes: bytes,
+    mime_type: str = "image/jpeg",
+    caption: str = "",
+    today: datetime | None = None,
+    tz_name: str = settings.app_timezone,
+) -> ExpenseParsed | None:
     """
     Analiza una imagen de ticket/recibo y extrae los datos del gasto.
     Recibe los bytes directamente del archivo subido.
     Retorna None si la imagen no es un ticket válido.
     """
-    today = today or datetime.now()
+    today = today or now_local(tz_name)
 
     try:
         image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
@@ -89,6 +97,7 @@ async def analyze_receipt_bytes(image_bytes: bytes, mime_type: str = "image/jpeg
                 date = datetime.fromisoformat(data["date"])
             except ValueError:
                 pass
+        date = normalize_expense_date(date, tz_name)
 
         description = data.get("description", "Ticket")
         merchant = data.get("merchant")

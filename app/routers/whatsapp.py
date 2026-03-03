@@ -180,11 +180,11 @@ async def _handle_linked(
 
     # ── Comandos de consulta ──────────────────────────────────────────────
     if cmd == "resumen":
-        data = await get_monthly_summary(user.id, db)
+        data = await get_monthly_summary(user.id, db, tz_name=user.timezone)
         return format_monthly_summary(data)
 
     if cmd == "semana":
-        data = await get_weekly_summary(user.id, db)
+        data = await get_weekly_summary(user.id, db, tz_name=user.timezone)
         return format_weekly_summary(data)
 
     if cmd in ("últimos", "ultimos"):
@@ -202,7 +202,7 @@ async def _handle_linked(
     if not body:
         return format_help()
 
-    parsed = await parse_expense_from_text(body)
+    parsed = await parse_expense_from_text(body, tz_name=user.timezone)
     if not parsed:
         return format_expense_error()
 
@@ -242,7 +242,7 @@ async def _handle_media(
 
     # ── Imagen ────────────────────────────────────────────────────────────
     if content_type.startswith("image/"):
-        parsed = await analyze_receipt_bytes(media_bytes, mime_type=content_type, caption=caption)
+        parsed = await analyze_receipt_bytes(media_bytes, mime_type=content_type, caption=caption, tz_name=user.timezone)
         if not parsed:
             return (
                 "❌ No pude identificar un monto en la imagen.\n\n"
@@ -265,7 +265,7 @@ async def _handle_media(
         transcription = await transcribe_audio_bytes(media_bytes, mime_type=content_type)
         if not transcription:
             return "❌ No pude transcribir el audio. Intenta de nuevo con más claridad."
-        parsed_list = await parse_multiple_expenses_from_text(transcription)
+        parsed_list = await parse_multiple_expenses_from_text(transcription, tz_name=user.timezone)
         if not parsed_list:
             return format_expense_error(f"Transcribí: \"{transcription}\"")
 
@@ -293,7 +293,7 @@ async def _handle_media(
 
     # ── PDF ───────────────────────────────────────────────────────────────
     if content_type == "application/pdf":
-        transactions = await parse_bank_statement(media_bytes)
+        transactions = await parse_bank_statement(media_bytes, tz_name=user.timezone)
         if not transactions:
             return "❌ No encontré transacciones en el PDF. ¿Es un estado de cuenta bancario?"
 

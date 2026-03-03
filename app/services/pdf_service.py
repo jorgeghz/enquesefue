@@ -10,8 +10,10 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 import pdfplumber
+from app.config import settings
 from app.schemas.expense import ExpenseParsed
 from app.services.ai_service import CATEGORIES, client
+from app.utils.tz import normalize_expense_date, now_local
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +50,14 @@ def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     return "\n".join(text_parts)
 
 
-async def parse_bank_statement(pdf_bytes: bytes, today: datetime | None = None) -> list[ExpenseParsed]:
+async def parse_bank_statement(
+    pdf_bytes: bytes, today: datetime | None = None, tz_name: str = settings.app_timezone
+) -> list[ExpenseParsed]:
     """
     Extrae una lista de gastos de un estado de cuenta PDF.
     Retorna lista vacía si no se encuentran transacciones.
     """
-    today = today or datetime.now()
+    today = today or now_local(tz_name)
 
     try:
         pdf_text = extract_text_from_pdf(pdf_bytes)
@@ -104,7 +108,7 @@ async def parse_bank_statement(pdf_bytes: bytes, today: datetime | None = None) 
                     currency=t.get("currency", "MXN"),
                     description=str(t.get("description", "Transacción"))[:255],
                     category_name=t.get("category_name", "Otros"),
-                    date=date,
+                    date=normalize_expense_date(date, tz_name),
                 ))
             except (KeyError, InvalidOperation):
                 continue

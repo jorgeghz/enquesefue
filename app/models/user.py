@@ -14,6 +14,7 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), default="MXN", nullable=False)
+    timezone: Mapped[str] = mapped_column(String(50), default="America/Mexico_City", server_default="America/Mexico_City", nullable=False)
     whatsapp_phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

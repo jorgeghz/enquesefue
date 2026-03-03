@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     # App
     environment: str = "development"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    # Timezone default (IANA name). Overridden per-user in the DB.
+    app_timezone: str = "America/Mexico_City"
 
     @property
     def async_database_url(self) -> str:

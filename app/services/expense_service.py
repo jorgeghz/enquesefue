@@ -9,10 +9,12 @@ from sqlalchemy import Date as SQLDate, and_, cast, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.models.category import Category
 from app.models.expense import Expense
 from app.models.user import User
 from app.schemas.expense import DuplicateInfo, ExpenseParsed
+from app.utils.tz import now_local
 
 
 def compute_file_hash(file_bytes: bytes) -> str:
@@ -213,14 +215,18 @@ async def get_daily_totals(user_id: int, start: datetime, end: datetime, db: Asy
     return out
 
 
-async def get_monthly_summary(user_id: int, db: AsyncSession) -> dict:
-    now = datetime.now(timezone.utc)
+async def get_monthly_summary(
+    user_id: int, db: AsyncSession, tz_name: str = settings.app_timezone
+) -> dict:
+    now = now_local(tz_name)
     start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     return await _summary_for_period(user_id, start, now, db)
 
 
-async def get_weekly_summary(user_id: int, db: AsyncSession) -> dict:
-    now = datetime.now(timezone.utc)
+async def get_weekly_summary(
+    user_id: int, db: AsyncSession, tz_name: str = settings.app_timezone
+) -> dict:
+    now = now_local(tz_name)
     start = now - timedelta(days=7)
     return await _summary_for_period(user_id, start, now, db)
 

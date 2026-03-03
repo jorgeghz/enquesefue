@@ -53,6 +53,14 @@ async def init_db() -> None:
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_whatsapp_phone "
             "ON users (whatsapp_phone) WHERE whatsapp_phone IS NOT NULL"
         ))
+        # Migración idempotente: agregar columna timezone a users
+        await conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) "
+            "DEFAULT 'America/Mexico_City'"
+        ))
+        await conn.execute(text(
+            "UPDATE users SET timezone = 'America/Mexico_City' WHERE timezone IS NULL"
+        ))
 
     await _seed_global_categories()
     await _seed_demo_user()

@@ -2,7 +2,24 @@ import { useEffect, useState } from 'react'
 import api from '../api/client'
 import Layout from '../components/Layout'
 import { useAuth } from '../hooks/useAuth'
-import type { Category } from '../types'
+import type { Category, User } from '../types'
+
+const TIMEZONES = [
+  { label: 'México — Ciudad de México (UTC-6/UTC-5)', value: 'America/Mexico_City' },
+  { label: 'México — Cancún (UTC-5, sin horario de verano)', value: 'America/Cancun' },
+  { label: 'México — Tijuana / Baja California (UTC-8/UTC-7)', value: 'America/Tijuana' },
+  { label: 'México — Chihuahua / Mazatlán (UTC-7/UTC-6)', value: 'America/Chihuahua' },
+  { label: 'Colombia (UTC-5)', value: 'America/Bogota' },
+  { label: 'Perú (UTC-5)', value: 'America/Lima' },
+  { label: 'Chile (UTC-3/UTC-4)', value: 'America/Santiago' },
+  { label: 'Argentina (UTC-3)', value: 'America/Argentina/Buenos_Aires' },
+  { label: 'EUA — Nueva York (UTC-5/UTC-4)', value: 'America/New_York' },
+  { label: 'EUA — Chicago (UTC-6/UTC-5)', value: 'America/Chicago' },
+  { label: 'EUA — Denver (UTC-7/UTC-6)', value: 'America/Denver' },
+  { label: 'EUA — Los Ángeles (UTC-8/UTC-7)', value: 'America/Los_Angeles' },
+  { label: 'España (UTC+1/UTC+2)', value: 'Europe/Madrid' },
+  { label: 'UTC', value: 'UTC' },
+]
 
 interface LinkPinResponse {
   pin: string
@@ -10,12 +27,30 @@ interface LinkPinResponse {
 }
 
 export default function Settings() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
   const [pin, setPin] = useState<string | null>(null)
   const [pinLoading, setPinLoading] = useState(false)
   const [pinError, setPinError] = useState('')
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [copied, setCopied] = useState(false)
+
+  // Zona horaria
+  const [selectedTz, setSelectedTz] = useState(user?.timezone ?? 'America/Mexico_City')
+  const [tzSaving, setTzSaving] = useState(false)
+  const [tzSaved, setTzSaved] = useState(false)
+
+  const handleSaveTz = async () => {
+    setTzSaving(true)
+    setTzSaved(false)
+    try {
+      const res = await api.patch<User>('/auth/me', { timezone: selectedTz })
+      setUser(res.data)
+      setTzSaved(true)
+      setTimeout(() => setTzSaved(false), 2500)
+    } finally {
+      setTzSaving(false)
+    }
+  }
 
   // Categorías personalizadas
   const [categories, setCategories] = useState<Category[]>([])
@@ -137,6 +172,32 @@ export default function Settings() {
               <span className="text-sm text-gray-500">Moneda</span>
               <span className="text-sm font-medium text-gray-900">{user?.currency}</span>
             </div>
+          </div>
+        </div>
+
+        {/* ── Tarjeta: Zona horaria ──────────────────────────────────── */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">Zona horaria</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Se usa para registrar la fecha correcta en tus gastos.
+          </p>
+          <div className="flex gap-3 items-center">
+            <select
+              value={selectedTz}
+              onChange={(e) => setSelectedTz(e.target.value)}
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {TIMEZONES.map((tz) => (
+                <option key={tz.value} value={tz.value}>{tz.label}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleSaveTz}
+              disabled={tzSaving || selectedTz === user?.timezone}
+              className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
+            >
+              {tzSaving ? 'Guardando…' : tzSaved ? '✓ Guardado' : 'Guardar'}
+            </button>
           </div>
         </div>
 
