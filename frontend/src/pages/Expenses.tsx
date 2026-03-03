@@ -139,6 +139,20 @@ export default function Expenses() {
     setEditingExpense(null)
   }
 
+  const handleViewFile = (id: number) => {
+    const token = localStorage.getItem('token')
+    fetch(`/api/expenses/${id}/file`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => {
+        if (!r.ok) throw new Error('No se pudo cargar el archivo')
+        return r.blob()
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob)
+        window.open(url, '_blank')
+      })
+      .catch(console.error)
+  }
+
   const tabs: { key: Tab; label: string; icon: string }[] = [
     { key: 'text', label: 'Texto', icon: '✍️' },
     { key: 'voice', label: 'Voz', icon: '🎤' },
@@ -248,14 +262,28 @@ export default function Expenses() {
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-xl shrink-0">{e.category_emoji ?? '💰'}</span>
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-800 text-sm truncate">{e.description}</p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {e.category_name} · {sourceIcon(e.source)} · {new Date(e.date).toLocaleDateString('es-MX')}
+                      <p className="font-medium text-gray-800 text-sm truncate">
+                        {e.merchant || e.description}
                       </p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {e.merchant ? `${e.description} · ` : ''}{e.category_name} · {sourceIcon(e.source)} · {new Date(e.date).toLocaleDateString('es-MX')}
+                      </p>
+                      {e.address && (
+                        <p className="text-xs text-gray-400 truncate">{e.address}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="font-semibold text-gray-900 text-sm">{formatMoney(e.amount, e.currency)}</span>
+                    {e.has_file && (
+                      <button
+                        onClick={() => handleViewFile(e.id)}
+                        className="text-gray-300 hover:text-indigo-500 transition text-base"
+                        title="Ver archivo adjunto"
+                      >
+                        📎
+                      </button>
+                    )}
                     <button
                       onClick={() => setEditingExpense(e)}
                       className="text-gray-300 hover:text-indigo-500 transition text-base"

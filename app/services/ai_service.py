@@ -29,6 +29,7 @@ Tu tarea es analizar el texto y devolver un JSON con los siguientes campos:
 - description: descripción corta y clara del gasto (máximo 100 caracteres)
 - category_name: una de las siguientes categorías exactas: {", ".join(CATEGORIES)}
 - date: fecha del gasto en formato ISO 8601 (YYYY-MM-DDTHH:MM:SS), si no se menciona usa null
+- merchant: nombre del comercio o negocio si se menciona explícitamente, o null
 
 Responde ÚNICAMENTE con el JSON, sin texto adicional, sin markdown.
 Si no puedes identificar un monto claro, devuelve {{"error": "no_amount"}}.
@@ -43,10 +44,11 @@ Devuelve un array JSON con TODOS los gastos encontrados. Cada elemento debe tene
 - description: descripción corta y clara (máximo 100 caracteres)
 - category_name: una de las siguientes categorías exactas: {", ".join(CATEGORIES)}
 - date: fecha en formato ISO 8601 (YYYY-MM-DDTHH:MM:SS), o null si no se menciona
+- merchant: nombre del comercio o negocio si se menciona explícitamente, o null
 
 Responde ÚNICAMENTE con el array JSON, sin texto adicional, sin markdown.
 Si no encuentras ningún gasto claro, devuelve [].
-Ejemplo: [{{"amount": 150, "currency": "MXN", "description": "Tacos", "category_name": "Alimentación", "date": null}}]
+Ejemplo: [{{"amount": 150, "currency": "MXN", "description": "Tacos", "category_name": "Alimentación", "date": null, "merchant": null}}]
 """
 
 
@@ -89,12 +91,14 @@ async def parse_expense_from_text(
             except ValueError:
                 date = today
 
+        merchant = data.get("merchant") or None
         return ExpenseParsed(
             amount=Decimal(str(data["amount"])),
             currency=data.get("currency", "MXN"),
             description=data["description"],
             category_name=data.get("category_name", "Otros"),
             date=normalize_expense_date(date, tz_name),
+            merchant=merchant[:255] if merchant else None,
         )
 
     except (json.JSONDecodeError, KeyError, InvalidOperation) as e:
@@ -142,12 +146,14 @@ async def parse_multiple_expenses_from_text(
                         date = datetime.fromisoformat(item["date"])
                     except ValueError:
                         date = today
+                merchant = item.get("merchant") or None
                 results.append(ExpenseParsed(
                     amount=Decimal(str(item["amount"])),
                     currency=item.get("currency", "MXN"),
                     description=item["description"],
                     category_name=item.get("category_name", "Otros"),
                     date=normalize_expense_date(date, tz_name),
+                    merchant=merchant[:255] if merchant else None,
                 ))
             except (KeyError, InvalidOperation) as e:
                 logger.warning("Saltando gasto malformado en respuesta multi: %s | item: %s", e, item)

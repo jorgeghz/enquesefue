@@ -4,7 +4,7 @@ import math
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -147,3 +147,33 @@ async def remove_expense(
     deleted = await delete_expense(expense_id, current_user.id, db)
     if not deleted:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
+
+
+@router.get("/{expense_id}/file")
+async def get_expense_file(
+    expense_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Devuelve el archivo adjunto (imagen) de un gasto."""
+    from app.models.expense_file import ExpenseFile
+
+    # Verificar que el gasto pertenece al usuario
+    exp_result = await db.execute(
+        select(ExpenseModel).where(ExpenseModel.id == expense_id, ExpenseModel.user_id == current_user.id)
+    )
+    if not exp_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
+
+    file_result = await db.execute(
+        select(ExpenseFile).where(ExpenseFile.expense_id == expense_id)
+    )
+    expense_file = file_result.scalar_one_or_none()
+    if not expense_file:
+        raise HTTPException(status_code=404, detail="Este gasto no tiene archivo adjunto")
+
+    return Response(
+        content=expense_file.data,
+        media_type=expense_file.content_type,
+        headers={"Content-Disposition": f'inline; filename="{expense_file.filename}"'},
+    )

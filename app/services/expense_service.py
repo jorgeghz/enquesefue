@@ -92,6 +92,9 @@ async def save_expense(
     raw_input: str,
     db: AsyncSession,
     file_hash: str | None = None,
+    file_bytes: bytes | None = None,
+    file_content_type: str | None = None,
+    file_filename: str | None = None,
 ) -> tuple[Expense, Expense | None]:
     """Guarda el gasto y devuelve (gasto_nuevo, posible_duplicado_o_None)."""
     # Buscar duplicado: hash primero (lookup exacto), luego huella semántica
@@ -108,13 +111,27 @@ async def save_expense(
         amount=parsed.amount,
         currency=parsed.currency or user.currency,
         description=parsed.description,
+        merchant=parsed.merchant,
+        address=parsed.address,
         category_id=category.id,
         date=parsed.date or datetime.now(timezone.utc),
         source=source,
         raw_input=raw_input,
         file_hash=file_hash,
+        has_file=file_bytes is not None,
     )
     db.add(expense)
+    await db.flush()  # obtener expense.id antes de crear ExpenseFile
+
+    if file_bytes:
+        from app.models.expense_file import ExpenseFile
+        db.add(ExpenseFile(
+            expense_id=expense.id,
+            content_type=file_content_type or "application/octet-stream",
+            filename=file_filename or "archivo",
+            data=file_bytes,
+        ))
+
     await db.commit()
     await db.refresh(expense)
     return expense, duplicate

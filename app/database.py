@@ -33,7 +33,7 @@ async def get_db() -> AsyncSession:
 
 async def init_db() -> None:
     """Crear tablas y hacer seed de categorías globales."""
-    from app.models import category, expense, user, whatsapp  # noqa: F401 — registra los modelos
+    from app.models import category, expense, expense_file, user, whatsapp  # noqa: F401 — registra los modelos
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -60,6 +60,16 @@ async def init_db() -> None:
         ))
         await conn.execute(text(
             "UPDATE users SET timezone = 'America/Mexico_City' WHERE timezone IS NULL"
+        ))
+        # Migración idempotente: merchant, address, has_file en expenses
+        await conn.execute(text(
+            "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS merchant VARCHAR(255)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS address VARCHAR(500)"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS has_file BOOLEAN NOT NULL DEFAULT FALSE"
         ))
 
     await _seed_global_categories()

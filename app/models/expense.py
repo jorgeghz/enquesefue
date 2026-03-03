@@ -23,6 +23,12 @@ class Expense(Base):
     raw_input: Mapped[str | None] = mapped_column(Text, nullable=True)
     # SHA-256 del archivo subido (imagen o PDF); None para fuentes texto/audio
     file_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Nombre del comercio extraído por IA (opcional)
+    merchant: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Dirección del establecimiento extraída por IA (opcional)
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # True si hay un archivo adjunto en expense_files
+    has_file: Mapped[bool] = mapped_column(default=False, server_default="false", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="expenses")  # noqa: F821

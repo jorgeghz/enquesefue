@@ -253,7 +253,13 @@ async def _handle_media(
                 "• También puedes escribir el gasto en texto: _\"gasté 250 en el super\"_"
             )
         file_hash = compute_file_hash(media_bytes)
-        expense, dup = await save_expense(parsed, user, source="image", raw_input="imagen", db=db, file_hash=file_hash)
+        expense, dup = await save_expense(
+            parsed, user, source="image", raw_input="imagen", db=db,
+            file_hash=file_hash,
+            file_bytes=media_bytes,
+            file_content_type=content_type,
+            file_filename="imagen_whatsapp",
+        )
         exp_result = await db.execute(
             select(ExpenseModel).where(ExpenseModel.id == expense.id).options(_si(ExpenseModel.category))
         )

@@ -11,6 +11,8 @@ class ExpenseParsed(BaseModel):
     description: str
     category_name: str
     date: datetime | None = None
+    merchant: str | None = None
+    address: str | None = None
 
 
 class ExpenseOut(BaseModel):
@@ -18,6 +20,9 @@ class ExpenseOut(BaseModel):
     amount: float
     currency: str
     description: str
+    merchant: str | None
+    address: str | None
+    has_file: bool
     category_id: int | None
     category_name: str | None
     category_emoji: str | None
@@ -34,6 +39,9 @@ class ExpenseOut(BaseModel):
             amount=float(expense.amount),
             currency=expense.currency,
             description=expense.description,
+            merchant=expense.merchant,
+            address=expense.address,
+            has_file=expense.has_file,
             category_id=expense.category_id,
             category_name=expense.category.name if expense.category else None,
             category_emoji=expense.category.emoji if expense.category else None,

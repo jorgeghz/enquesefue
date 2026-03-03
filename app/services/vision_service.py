@@ -25,10 +25,11 @@ Extrae la información del gasto y devuelve un JSON con:
 - amount: monto total pagado (número decimal, sin símbolo de moneda). Si hay varios subtotales,
   usa el TOTAL final. Si ves un precio claramente aunque no sea el total, úsalo.
 - currency: código ISO 4217 (por defecto "MXN" si no se especifica)
-- description: descripción corta del gasto (máximo 100 caracteres, ej: "Supermercado Walmart")
+- description: descripción corta del gasto (máximo 100 caracteres, ej: "Despensa semanal")
 - category_name: una de las siguientes categorías: {", ".join(CATEGORIES)}
-- date: fecha visible en la imagen en formato ISO 8601, o null si no aparece
-- merchant: nombre del comercio o app si está visible, o null
+- date: fecha y hora del ticket en formato ISO 8601 (con hora si aparece, ej: "2026-02-15T14:30:00"), o null si no aparece
+- merchant: nombre del comercio o establecimiento tal como aparece en el ticket, o null si no se ve claramente
+- address: dirección del establecimiento si aparece en el ticket (calle, número, colonia, ciudad), o null si no aparece
 
 Solo devuelve {{"error": "not_a_receipt"}} si la imagen NO muestra absolutamente ningún precio,
 monto o información de pago (ej: foto de una persona, paisaje, etc.).
@@ -99,17 +100,17 @@ async def analyze_receipt_bytes(
                 pass
         date = normalize_expense_date(date, tz_name)
 
-        description = data.get("description", "Ticket")
-        merchant = data.get("merchant")
-        if merchant and merchant not in description:
-            description = f"{merchant} — {description}"
+        merchant = data.get("merchant") or None
+        address = data.get("address") or None
 
         return ExpenseParsed(
             amount=Decimal(str(data["amount"])),
             currency=data.get("currency", "MXN"),
-            description=description[:255],
+            description=data.get("description", "Ticket")[:255],
             category_name=data.get("category_name", "Otros"),
             date=date,
+            merchant=merchant[:255] if merchant else None,
+            address=address[:500] if address else None,
         )
 
     except (json.JSONDecodeError, KeyError, InvalidOperation) as e:

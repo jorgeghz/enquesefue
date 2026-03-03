@@ -25,6 +25,9 @@ export interface Expense {
   amount: number
   currency: string
   description: string
+  merchant: string | null
+  address: string | null
+  has_file: boolean
   category_id: number | null
   category_name: string | null
   category_emoji: string | null

@@ -56,7 +56,11 @@ async def upload_image(
 
     file_hash = compute_file_hash(image_bytes)
     expense, dup = await save_expense(
-        parsed, current_user, source="image", raw_input=file.filename or "imagen", db=db, file_hash=file_hash
+        parsed, current_user, source="image", raw_input=file.filename or "imagen", db=db,
+        file_hash=file_hash,
+        file_bytes=image_bytes,
+        file_content_type=file.content_type,
+        file_filename=file.filename or "imagen",
     )
     expense = await _reload_with_category(expense.id, db)
     return ExpenseOutWithDuplicate(
