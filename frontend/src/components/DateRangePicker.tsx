@@ -75,21 +75,15 @@ export default function DateRangePicker({ preset, from, to, onChange, includeAll
 
   return (
     <div>
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
+      <select
+        value={preset}
+        onChange={(e) => handlePreset(e.target.value)}
+        className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+      >
         {allPresets.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => handlePreset(p.key)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition border ${
-              preset === p.key
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
-            }`}
-          >
-            {p.label}
-          </button>
+          <option key={p.key} value={p.key}>{p.label}</option>
         ))}
-      </div>
+      </select>
 
       {preset === 'custom' && (
         <div className="flex gap-2 mt-2 items-center">
