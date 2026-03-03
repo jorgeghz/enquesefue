@@ -281,7 +281,7 @@ async def _summary_for_period(user_id: int, start: datetime, end: datetime, db: 
 
     recent_result = await db.execute(
         select(Expense)
-        .where(Expense.user_id == user_id, Expense.date >= start)
+        .where(Expense.user_id == user_id, Expense.date >= start, Expense.date <= end)
         .order_by(desc(Expense.date))
         .limit(5)
         .options(selectinload(Expense.category))
