@@ -16,7 +16,7 @@ function formatMoney(amount: number, currency = 'MXN') {
 }
 
 function sourceIcon(source: string) {
-  return { text: '✍️', audio: '🎤', image: '📷', pdf: '📄' }[source] ?? '📝'
+  return { text: '✍️', audio: '🎤', image: '📷', pdf: '📄', recurring: '🔁' }[source] ?? '📝'
 }
 
 function fmtDate(d: Date): string {
@@ -239,10 +239,13 @@ export default function Dashboard() {
                       <div className="flex items-center gap-3">
                         <span className="text-xl">{e.category_emoji ?? '💰'}</span>
                         <div>
-                          <p className="font-medium text-gray-800 text-sm">{e.description}</p>
+                          <p className="font-medium text-gray-800 text-sm">{e.merchant || e.description}</p>
                           <p className="text-xs text-gray-400">
-                            {e.category_name} · {sourceIcon(e.source)} · {new Date(e.date).toLocaleDateString('es-MX')}
+                            {e.merchant ? `${e.description} · ` : ''}{e.category_name} · {sourceIcon(e.source)} · {new Date(e.date).toLocaleDateString('es-MX')}
                           </p>
+                          {e.recurring_expense_id && (
+                            <span className="inline-block text-xs bg-indigo-50 text-indigo-500 rounded px-1.5 py-0.5">🔁 recurrente</span>
+                          )}
                         </div>
                       </div>
                       <span className="font-semibold text-gray-900">{formatMoney(e.amount, e.currency)}</span>
