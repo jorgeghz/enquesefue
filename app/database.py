@@ -87,6 +87,17 @@ async def init_db() -> None:
             "CREATE INDEX IF NOT EXISTS ix_expenses_recurring_expense_id "
             "ON expenses (recurring_expense_id) WHERE recurring_expense_id IS NOT NULL"
         ))
+        # Migración idempotente: Google OAuth — google_id en users, password_hash nullable
+        await conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(100)"
+        ))
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id "
+            "ON users (google_id) WHERE google_id IS NOT NULL"
+        ))
+        await conn.execute(text(
+            "ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL"
+        ))
 
     await _seed_global_categories()
     await _seed_demo_user()

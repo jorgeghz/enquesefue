@@ -47,8 +47,38 @@ async def register_user(data: UserCreate, db: AsyncSession) -> User:
 async def authenticate_user(email: str, password: str, db: AsyncSession) -> User | None:
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(password, user.password_hash):
+    # Usuarios de Google no tienen password_hash — no pueden iniciar sesión con contraseña
+    if not user or not user.password_hash:
         return None
+    if not verify_password(password, user.password_hash):
+        return None
+    return user
+
+
+async def get_or_create_google_user(
+    google_id: str, email: str, name: str, db: AsyncSession
+) -> User:
+    """Busca un usuario por google_id; si no existe, lo busca por email (vincula) o lo crea."""
+    # 1. Buscar por google_id
+    result = await db.execute(select(User).where(User.google_id == google_id))
+    user = result.scalar_one_or_none()
+    if user:
+        return user
+
+    # 2. Buscar por email — vincular cuenta existente
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if user:
+        user.google_id = google_id
+        await db.commit()
+        await db.refresh(user)
+        return user
+
+    # 3. Crear nuevo usuario
+    user = User(email=email, password_hash=None, name=name, google_id=google_id)
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
     return user
 
 

@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = "enquesefue <noreply@enquesefue.com>"
 
+    # Google OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    # URL pública del backend (para el redirect_uri que se envía a Google)
+    # Dev: http://localhost:8000  |  Railway: https://tu-dominio.com
+    app_base_url: str = "http://localhost:8000"
+    # URL del frontend (para redirigir después de autenticación exitosa)
+    # Dev: http://localhost:5173  |  Railway: https://tu-dominio.com
+    frontend_url: str = "http://localhost:5173"
+
     @property
     def async_database_url(self) -> str:
         url = self.database_url

@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+import AuthCallback from './pages/AuthCallback'
 import Dashboard from './pages/Dashboard'
 import Expenses from './pages/Expenses'
 import Login from './pages/Login'
@@ -26,6 +27,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/gastos" element={<PrivateRoute><Expenses /></PrivateRoute>} />
         <Route path="/recurrentes" element={<PrivateRoute><Recurring /></PrivateRoute>} />
