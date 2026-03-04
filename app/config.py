@@ -23,6 +23,9 @@ class Settings(BaseSettings):
 
     # App
     environment: str = "development"
+    # Modo debug: expone errores internos (OpenAI, BD, etc.) en las respuestas API.
+    # Poner en False en producción.
+    app_debug: bool = False
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     # Timezone default (IANA name). Overridden per-user in the DB.
     app_timezone: str = "America/Mexico_City"
