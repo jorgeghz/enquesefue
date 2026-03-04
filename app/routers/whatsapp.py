@@ -61,7 +61,7 @@ _COMMANDS = {"resumen", "semana", "últimos", "ultimos", "ayuda", "help"}
 # ---------------------------------------------------------------------------
 
 @router.post("/webhook", status_code=200)
-@limiter.limit("1/minute")
+@limiter.limit("120/minute")
 async def whatsapp_webhook(
     request: Request,
     From: str = Form(...),
@@ -76,9 +76,14 @@ async def whatsapp_webhook(
     if settings.environment == "production":
         signature = request.headers.get("X-Twilio-Signature", "")
         form_data = dict(await request.form())
+        # Railway termina TLS antes de FastAPI: request.url puede ser http://
+        # pero Twilio firmó con la URL pública https://.  Corregir el esquema.
         url = str(request.url)
+        forwarded_proto = request.headers.get("X-Forwarded-Proto")
+        if forwarded_proto and not url.startswith(forwarded_proto + "://"):
+            url = forwarded_proto + "://" + url.split("://", 1)[1]
         if not validate_twilio_signature(url, {k: str(v) for k, v in form_data.items()}, signature):
-            logger.warning("Firma Twilio inválida — request rechazado")
+            logger.warning("Firma Twilio inválida — request rechazado (url=%s)", url)
             raise HTTPException(status_code=403, detail="Firma inválida")
 
     # ── 2. Parsear número de teléfono ─────────────────────────────────────
