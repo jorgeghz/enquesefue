@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import InstallBanner from './InstallBanner'
+import QuickAddSheet from './QuickAddSheet'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
 
   const handleLogout = () => {
     logout()
@@ -75,6 +78,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </main>
 
       <InstallBanner />
+
+      {/* FAB — solo en móvil */}
+      <button
+        onClick={() => setQuickAddOpen(true)}
+        className="fixed bottom-20 right-4 md:hidden w-14 h-14 bg-indigo-600 text-white rounded-full shadow-lg flex items-center justify-center text-3xl hover:bg-indigo-700 active:scale-95 transition z-20"
+        aria-label="Nuevo gasto"
+      >
+        +
+      </button>
+
+      <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
 
       {/* Barra de navegación inferior — solo en móvil */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex md:hidden z-10">

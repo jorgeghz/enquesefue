@@ -1,14 +1,23 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import api from '../api/client'
 import DateRangePicker from '../components/DateRangePicker'
 import DuplicateWarning from '../components/DuplicateWarning'
 import EditExpenseModal from '../components/EditExpenseModal'
 import FileUpload from '../components/FileUpload'
 import Layout from '../components/Layout'
+import { SkeletonRow } from '../components/Skeleton'
 import VoiceRecorder from '../components/VoiceRecorder'
 import type { Category, DuplicateInfo, Expense, ExpenseListResponse, ExpenseWithDuplicate } from '../types'
 
 type Tab = 'text' | 'voice' | 'file'
+
+const CATEGORY_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#ec4899']
+
+function categoryColor(id?: number | null): string {
+  if (!id) return '#e5e7eb'
+  return CATEGORY_COLORS[(id - 1) % CATEGORY_COLORS.length]
+}
 
 function formatMoney(amount: number, currency = 'MXN') {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(amount)
@@ -16,6 +25,32 @@ function formatMoney(amount: number, currency = 'MXN') {
 
 function sourceIcon(source: string) {
   return { text: '✍️', audio: '🎤', image: '📷', pdf: '📄', recurring: '🔁' }[source] ?? '📝'
+}
+
+function getDateGroup(dateStr: string): string {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const d = new Date(dateStr)
+  d.setHours(0, 0, 0, 0)
+  const diffDays = Math.floor((today.getTime() - d.getTime()) / 86400000)
+  if (diffDays === 0) return 'Hoy'
+  if (diffDays === 1) return 'Ayer'
+  if (diffDays < 7) {
+    return d.toLocaleDateString('es-MX', { weekday: 'long' })
+      .replace(/^\w/, (c) => c.toUpperCase())
+  }
+  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: diffDays > 365 ? 'numeric' : undefined })
+}
+
+function groupExpenses(expenses: ExpenseWithDuplicate[]): [string, ExpenseWithDuplicate[]][] {
+  const groups: Record<string, ExpenseWithDuplicate[]> = {}
+  const order: string[] = []
+  for (const e of expenses) {
+    const key = getDateGroup(e.date)
+    if (!groups[key]) { groups[key] = []; order.push(key) }
+    groups[key].push(e)
+  }
+  return order.map((k) => [k, groups[k]])
 }
 
 export default function Expenses() {
@@ -35,7 +70,6 @@ export default function Expenses() {
   // Formulario texto
   const [text, setText] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [textError, setTextError] = useState('')
 
   // Advertencia de duplicado pendiente
   const [pendingDuplicate, setPendingDuplicate] = useState<{
@@ -96,7 +130,6 @@ export default function Expenses() {
     e.preventDefault()
     if (!text.trim()) return
     setSubmitting(true)
-    setTextError('')
     setPendingDuplicate(null)
     try {
       const res = await api.post<ExpenseWithDuplicate>('/expenses', { text })
@@ -105,9 +138,12 @@ export default function Expenses() {
       setText('')
       if (res.data.possible_duplicate) {
         setPendingDuplicate({ newId: res.data.id, duplicate: res.data.possible_duplicate })
+        toast.warning('Posible duplicado detectado')
+      } else {
+        toast.success('Gasto registrado')
       }
     } catch (err: any) {
-      setTextError(err.response?.data?.detail || 'No pude identificar el gasto')
+      toast.error(err.response?.data?.detail || 'No pude identificar el gasto')
     } finally {
       setSubmitting(false)
     }
@@ -125,6 +161,7 @@ export default function Expenses() {
     await api.delete(`/expenses/${id}`)
     setExpenses((prev) => prev.filter((e) => e.id !== id))
     setTotal((t) => t - 1)
+    toast.success('Gasto eliminado')
   }
 
   const handleDuplicateDelete = () => {
@@ -137,6 +174,7 @@ export default function Expenses() {
   const handleEditSaved = (updated: Expense) => {
     setExpenses((prev) => prev.map((e) => e.id === updated.id ? { ...updated, possible_duplicate: null } : e))
     setEditingExpense(null)
+    toast.success('Gasto actualizado')
   }
 
   const handleViewFile = (id: number) => {
@@ -150,7 +188,7 @@ export default function Expenses() {
         const url = URL.createObjectURL(blob)
         window.open(url, '_blank')
       })
-      .catch(console.error)
+      .catch(() => toast.error('No se pudo cargar el archivo adjunto'))
   }
 
   const tabs: { key: Tab; label: string; icon: string }[] = [
@@ -158,6 +196,8 @@ export default function Expenses() {
     { key: 'voice', label: 'Voz', icon: '🎤' },
     { key: 'file', label: 'Archivo', icon: '📎' },
   ]
+
+  const grouped = groupExpenses(expenses)
 
   return (
     <Layout>
@@ -200,7 +240,6 @@ export default function Expenses() {
               </button>
             </form>
           )}
-          {tab === 'text' && textError && <p className="text-red-500 text-sm mt-2">{textError}</p>}
           {tab === 'voice' && <VoiceRecorder onExpenseCreated={handleExpenseCreated} />}
           {tab === 'file' && <FileUpload onExpenseCreated={handleExpenseCreated} />}
 
@@ -249,61 +288,77 @@ export default function Expenses() {
         {/* Lista */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center h-48 text-gray-400">Cargando...</div>
+            <div className="divide-y divide-gray-50">
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)}
+            </div>
           ) : expenses.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-gray-400">
               <span className="text-4xl mb-2">💸</span>
               <p>No hay gastos. ¡Registra el primero arriba!</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-50">
-              {expenses.map((e) => (
-                <div key={e.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-xl shrink-0">{e.category_emoji ?? '💰'}</span>
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-800 text-sm truncate">
-                        {e.merchant || e.description}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">
-                        {e.merchant ? `${e.description} · ` : ''}{e.category_name} · {sourceIcon(e.source)} · {new Date(e.date).toLocaleDateString('es-MX')}
-                      </p>
-                      {e.address && (
-                        <p className="text-xs text-gray-400 truncate">{e.address}</p>
-                      )}
-                      {e.notes && (
-                        <p className="text-xs text-amber-600 truncate">📝 {e.notes}</p>
-                      )}
-                      {e.recurring_expense_id && (
-                        <span className="inline-block text-xs bg-indigo-50 text-indigo-500 rounded px-1.5 py-0.5">🔁 recurrente</span>
-                      )}
-                    </div>
+            <div>
+              {grouped.map(([group, items]) => (
+                <div key={group}>
+                  {/* Cabecera de grupo */}
+                  <div className="px-4 py-2 bg-gray-50 border-y border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    {group}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-semibold text-gray-900 text-sm">{formatMoney(e.amount, e.currency)}</span>
-                    {e.has_file && (
-                      <button
-                        onClick={() => handleViewFile(e.id)}
-                        className="text-gray-300 hover:text-indigo-500 transition text-base"
-                        title="Ver archivo adjunto"
+                  <div className="divide-y divide-gray-50">
+                    {items.map((e) => (
+                      <div
+                        key={e.id}
+                        className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 gap-3 border-l-4 transition-colors"
+                        style={{ borderLeftColor: categoryColor(e.category_id) }}
                       >
-                        📎
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setEditingExpense(e)}
-                      className="text-gray-300 hover:text-indigo-500 transition text-base"
-                      title="Editar"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => handleDelete(e.id)}
-                      className="text-gray-300 hover:text-red-500 transition text-lg"
-                      title="Eliminar"
-                    >
-                      🗑️
-                    </button>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="text-xl shrink-0">{e.category_emoji ?? '💰'}</span>
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-800 text-sm truncate">
+                              {e.merchant || e.description}
+                            </p>
+                            <p className="text-xs text-gray-400 truncate">
+                              {e.merchant ? `${e.description} · ` : ''}{e.category_name} · {sourceIcon(e.source)}
+                            </p>
+                            {e.address && (
+                              <p className="text-xs text-gray-400 truncate">{e.address}</p>
+                            )}
+                            {e.notes && (
+                              <p className="text-xs text-amber-600 truncate">📝 {e.notes}</p>
+                            )}
+                            {e.recurring_expense_id && (
+                              <span className="inline-block text-xs bg-indigo-50 text-indigo-500 rounded px-1.5 py-0.5">🔁 recurrente</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="font-semibold text-gray-900 text-sm">{formatMoney(e.amount, e.currency)}</span>
+                          {e.has_file && (
+                            <button
+                              onClick={() => handleViewFile(e.id)}
+                              className="text-gray-300 hover:text-indigo-500 transition text-base"
+                              title="Ver archivo adjunto"
+                            >
+                              📎
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setEditingExpense(e)}
+                            className="text-gray-300 hover:text-indigo-500 transition text-base"
+                            title="Editar"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={() => handleDelete(e.id)}
+                            className="text-gray-300 hover:text-red-500 transition text-lg"
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}

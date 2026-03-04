@@ -6,6 +6,7 @@ import {
 import api from '../api/client'
 import DateRangePicker, { getRangeForPreset } from '../components/DateRangePicker'
 import Layout from '../components/Layout'
+import { SkeletonCard, SkeletonChart } from '../components/Skeleton'
 import type { DailyStat, Expense, SummaryResponse } from '../types'
 
 const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#ec4899']
@@ -103,7 +104,15 @@ export default function Dashboard() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center h-64 text-gray-400">Cargando...</div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+              <SkeletonCard /><SkeletonCard /><SkeletonCard />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <SkeletonChart /><SkeletonChart />
+            </div>
+            <SkeletonChart />
+          </>
         ) : (
           <>
             {/* KPIs */}

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { toast } from 'sonner'
 import api from '../api/client'
 import type { ExpenseWithDuplicate, PDFExpense, PDFImportResult } from '../types'
 
@@ -10,14 +11,10 @@ interface Props {
 export default function VoiceRecorder({ onExpenseCreated, onExpensesCreated }: Props) {
   const [recording, setRecording] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
 
   const startRecording = async () => {
-    setError('')
-    setSuccess('')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream)
@@ -37,7 +34,7 @@ export default function VoiceRecorder({ onExpenseCreated, onExpensesCreated }: P
       recorder.start()
       setRecording(true)
     } catch {
-      setError('No se pudo acceder al micrófono. Verifica los permisos.')
+      toast.error('No se pudo acceder al micrófono. Verifica los permisos.')
     }
   }
 
@@ -48,8 +45,6 @@ export default function VoiceRecorder({ onExpenseCreated, onExpensesCreated }: P
 
   const uploadAudio = async (blob: Blob) => {
     setLoading(true)
-    setError('')
-    setSuccess('')
     try {
       const form = new FormData()
       form.append('file', blob, 'audio.webm')
@@ -57,16 +52,16 @@ export default function VoiceRecorder({ onExpenseCreated, onExpensesCreated }: P
         headers: { 'Content-Type': 'multipart/form-data' },
       })
       const { created, duplicates_count, expenses } = res.data
-      let msg = `✅ ${created} gasto${created !== 1 ? 's' : ''} registrado${created !== 1 ? 's' : ''}`
+      let msg = `${created} gasto${created !== 1 ? 's' : ''} registrado${created !== 1 ? 's' : ''}`
       if (duplicates_count > 0) msg += ` (${duplicates_count} posible${duplicates_count !== 1 ? 's' : ''} duplicado${duplicates_count !== 1 ? 's' : ''})`
-      setSuccess(msg)
+      toast.success(msg)
       if (onExpensesCreated) {
         onExpensesCreated(expenses)
       } else {
         expenses.forEach((e) => onExpenseCreated({ ...e, possible_duplicate: null }))
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error procesando el audio. Intenta de nuevo.')
+      toast.error(err.response?.data?.detail || 'Error procesando el audio. Intenta de nuevo.')
     } finally {
       setLoading(false)
     }
@@ -94,8 +89,6 @@ export default function VoiceRecorder({ onExpenseCreated, onExpensesCreated }: P
         )}
         {loading && <span className="text-sm text-gray-500">Procesando audio...</span>}
       </div>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
-      {success && <p className="text-green-600 text-sm font-medium">{success}</p>}
     </div>
   )
 }

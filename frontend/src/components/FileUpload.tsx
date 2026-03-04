@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
+import { toast } from 'sonner'
 import api from '../api/client'
 import type { ExpenseWithDuplicate, PDFExpense, PDFImportResult } from '../types'
 
@@ -10,12 +11,8 @@ interface Props {
 
 export default function FileUpload({ onExpenseCreated, onExpensesCreated }: Props) {
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
 
   const upload = useCallback(async (file: File) => {
-    setError('')
-    setSuccess('')
     setLoading(true)
     try {
       const form = new FormData()
@@ -26,24 +23,23 @@ export default function FileUpload({ onExpenseCreated, onExpensesCreated }: Prop
           headers: { 'Content-Type': 'multipart/form-data' },
         })
         const { created, duplicates_count, expenses } = res.data
-        let msg = `✅ ${created} gastos importados del estado de cuenta`
+        let msg = `${created} gastos importados del estado de cuenta`
         if (duplicates_count > 0) msg += ` (${duplicates_count} posibles duplicados)`
-        setSuccess(msg)
+        toast.success(msg)
         if (onExpensesCreated) {
           onExpensesCreated(expenses)
         } else {
-          // Normalizar PDFExpense → ExpenseWithDuplicate (sin aviso individual en PDFs)
           expenses.forEach((e) => onExpenseCreated({ ...e, possible_duplicate: null }))
         }
       } else {
         const res = await api.post<ExpenseWithDuplicate>('/upload/image', form, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
-        setSuccess('✅ Ticket analizado y gasto registrado')
+        toast.success('Ticket analizado y gasto registrado')
         onExpenseCreated(res.data)
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error procesando el archivo')
+      toast.error(err.response?.data?.detail || 'Error procesando el archivo')
     } finally {
       setLoading(false)
     }
@@ -78,8 +74,6 @@ export default function FileUpload({ onExpenseCreated, onExpensesCreated }: Prop
           </>
         )}
       </div>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
-      {success && <p className="text-green-600 text-sm font-medium">{success}</p>}
     </div>
   )
 }
