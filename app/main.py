@@ -1,9 +1,11 @@
+import logging
+import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -13,6 +15,8 @@ from app.database import init_db
 from app.limiter import limiter
 from app.routers import auth, categories, expenses, recurring, stats, upload, whatsapp
 from app.services.scheduler_service import start_scheduler, stop_scheduler
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -40,6 +44,23 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Captura excepciones no manejadas. En modo debug expone el error original."""
+    tb = traceback.format_exc()
+    logger.error("Unhandled exception on %s %s: %s\n%s", request.method, request.url.path, exc, tb)
+    if settings.app_debug:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": f"{type(exc).__name__}: {exc}",
+                "traceback": tb,
+                "path": request.url.path,
+            },
+        )
+    return JSONResponse(status_code=500, content={"detail": "Error interno del servidor"})
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -55,6 +76,12 @@ app.include_router(categories.router)
 app.include_router(stats.router)
 app.include_router(upload.router)
 app.include_router(whatsapp.router)
+
+
+@app.get("/api/config", include_in_schema=False)
+async def get_app_config():
+    """Expone configuración pública de la app (debug mode, etc.)."""
+    return {"debug": settings.app_debug}
 
 
 @app.get("/health")

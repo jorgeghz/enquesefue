@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import DebugPanel from './DebugPanel'
 import InstallBanner from './InstallBanner'
 import QuickAddSheet from './QuickAddSheet'
 
@@ -89,6 +90,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </button>
 
       <QuickAddSheet open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
+
+      <DebugPanel />
 
       {/* Barra de navegación inferior — solo en móvil */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex md:hidden z-10">

@@ -21,6 +21,7 @@ from app.schemas.expense import (
     ExpenseOut,
     ExpenseOutWithDuplicate,
 )
+from app.config import settings
 from app.services.ai_service import parse_expense_from_text
 from app.services.expense_service import (
     delete_expense,
@@ -105,7 +106,8 @@ async def create_expense(
     try:
         parsed = await parse_expense_from_text(body.text, tz_name=current_user.timezone)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al procesar el gasto: {e}")
+        detail = f"{type(e).__name__}: {e}" if settings.app_debug else "Error al procesar el gasto. Intenta de nuevo."
+        raise HTTPException(status_code=500, detail=detail)
     if not parsed:
         raise HTTPException(
             status_code=422,
