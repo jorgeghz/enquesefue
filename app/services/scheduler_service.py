@@ -48,7 +48,7 @@ async def _create_recurring_expenses() -> None:
     from datetime import datetime, timezone
     from zoneinfo import ZoneInfo
 
-    from sqlalchemy import extract, select
+    from sqlalchemy import and_, extract, or_, select
 
     from app.database import AsyncSessionLocal
     from app.models.expense import Expense
@@ -72,8 +72,8 @@ async def _create_recurring_expenses() -> None:
     for template in templates:
         try:
             async with AsyncSessionLocal() as db:
-                # Evitar duplicados: ya existe un gasto de este template en el mes actual?
-                dup_result = await db.execute(
+                # Verificación 1: ya creado desde este mismo template este mes
+                dup_template = await db.execute(
                     select(Expense).where(
                         Expense.user_id == template.user_id,
                         Expense.recurring_expense_id == template.id,
@@ -81,8 +81,33 @@ async def _create_recurring_expenses() -> None:
                         extract("month", Expense.date) == now.month,
                     ).limit(1)
                 )
-                if dup_result.scalar_one_or_none():
-                    continue  # ya creado este mes
+                if dup_template.scalar_one_or_none():
+                    continue  # ya creado este mes desde el template
+
+                # Verificación 2: ya existe gasto con mismo monto+moneda+descripción/merchant
+                # este mes (ej. el usuario lo registró manualmente antes del scheduler)
+                content_filters = [Expense.description.ilike(template.description)]
+                if template.merchant:
+                    content_filters.append(Expense.merchant.ilike(template.merchant))
+
+                dup_content = await db.execute(
+                    select(Expense).where(
+                        and_(
+                            Expense.user_id == template.user_id,
+                            Expense.amount == template.amount,
+                            Expense.currency == template.currency,
+                            extract("year", Expense.date) == now.year,
+                            extract("month", Expense.date) == now.month,
+                            or_(*content_filters),
+                        )
+                    ).limit(1)
+                )
+                if dup_content.scalar_one_or_none():
+                    logger.info(
+                        "Recurrente '%s' ya existe este mes (registrado manualmente), omitiendo.",
+                        template.description,
+                    )
+                    continue
 
                 expense = Expense(
                     user_id=template.user_id,
