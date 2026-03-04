@@ -14,12 +14,25 @@ export default function InstallBanner() {
       setDismissed(true)
       return
     }
-    const handler = (e: Event) => {
+    // El evento puede haber disparado antes de que React montara este componente.
+    // main.tsx lo captura temprano y lo guarda en window.__pwaPrompt.
+    if ((window as any).__pwaPrompt) {
+      setPrompt((window as any).__pwaPrompt)
+      return
+    }
+    const handleNative = (e: Event) => {
       e.preventDefault()
       setPrompt(e as BeforeInstallPromptEvent)
     }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    const handleReady = () => {
+      if ((window as any).__pwaPrompt) setPrompt((window as any).__pwaPrompt)
+    }
+    window.addEventListener('beforeinstallprompt', handleNative)
+    window.addEventListener('pwa-prompt-ready', handleReady)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleNative)
+      window.removeEventListener('pwa-prompt-ready', handleReady)
+    }
   }, [])
 
   if (!prompt || dismissed) return null
