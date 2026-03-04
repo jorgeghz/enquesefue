@@ -106,6 +106,59 @@ async def parse_expense_from_text(
         return None
 
 
+_QUERY_SYSTEM_PROMPT = """Eres un asistente que interpreta consultas sobre gastos personales en lenguaje natural.
+Dada la consulta del usuario, extrae los filtros de búsqueda y devuelve un JSON con:
+- keyword: string o null. Palabra clave para buscar en descripción/comercio (ej: "uber", "super", "oxxo", "comida").
+  Si la consulta menciona una categoría genérica, ponla aquí. Si es una consulta general sin filtro de comercio/categoría, usa null.
+- date_from: ISO 8601 UTC o null. Inicio del período solicitado.
+- date_to: ISO 8601 UTC o null. Fin del período solicitado.
+- period_label: string. Descripción legible del período (ej: "esta semana", "enero 2026", "hoy", "todo el tiempo").
+
+Responde SOLO con el JSON, sin texto adicional.
+Fecha y hora actual: {now}. Zona horaria: {tz}.
+"""
+
+
+async def query_expenses_natural(
+    query: str, tz_name: str = settings.app_timezone
+) -> dict | None:
+    """
+    Interpreta una consulta de gastos en lenguaje natural.
+    Devuelve dict con keyword, date_from, date_to, period_label; o None si falla.
+    """
+    now = now_local(tz_name)
+    system = _QUERY_SYSTEM_PROMPT.format(now=now.isoformat(), tz=tz_name)
+
+    def _call() -> str:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": query},
+            ],
+            temperature=0,
+            max_tokens=200,
+        )
+        return response.choices[0].message.content.strip()
+
+    try:
+        raw = await asyncio.to_thread(_call)
+        if raw.startswith("```"):
+            lines = raw.split("\n")
+            raw = "\n".join(lines[1:-1] if lines and lines[-1].strip() == "```" else lines[1:])
+            raw = raw.strip()
+        data = json.loads(raw)
+        return {
+            "keyword": data.get("keyword") or None,
+            "date_from": datetime.fromisoformat(data["date_from"]) if data.get("date_from") else None,
+            "date_to": datetime.fromisoformat(data["date_to"]) if data.get("date_to") else None,
+            "period_label": data.get("period_label", "el período solicitado"),
+        }
+    except Exception as e:
+        logger.error("Error interpretando consulta natural: %s | raw: %s", e, locals().get("raw", ""))
+        return None
+
+
 async def parse_multiple_expenses_from_text(
     text: str, today: datetime | None = None, tz_name: str = settings.app_timezone
 ) -> list[ExpenseParsed]:

@@ -29,6 +29,8 @@ class Expense(Base):
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     # True si hay un archivo adjunto en expense_files
     has_file: Mapped[bool] = mapped_column(default=False, server_default="false", nullable=False)
+    # Nota libre escrita por el usuario (opcional)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="expenses")  # noqa: F821

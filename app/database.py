@@ -71,6 +71,14 @@ async def init_db() -> None:
         await conn.execute(text(
             "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS has_file BOOLEAN NOT NULL DEFAULT FALSE"
         ))
+        # Migración idempotente: notes en expenses
+        await conn.execute(text(
+            "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS notes TEXT"
+        ))
+        # Migración idempotente: email_summary en users
+        await conn.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_summary BOOLEAN NOT NULL DEFAULT TRUE"
+        ))
 
     await _seed_global_categories()
     await _seed_demo_user()

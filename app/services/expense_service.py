@@ -5,7 +5,7 @@ import hashlib
 from datetime import date as PyDate, datetime, timedelta, timezone
 from decimal import Decimal
 
-from sqlalchemy import Date as SQLDate, and_, cast, desc, func, select
+from sqlalchemy import Date as SQLDate, and_, cast, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -145,6 +145,7 @@ async def list_expenses(
     category_id: int | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
+    search: str | None = None,
 ) -> tuple[list[Expense], int]:
     filters = [Expense.user_id == user_id]
     if category_id:
@@ -153,6 +154,12 @@ async def list_expenses(
         filters.append(Expense.date >= date_from)
     if date_to:
         filters.append(Expense.date <= date_to)
+    if search:
+        like = f"%{search}%"
+        filters.append(or_(
+            Expense.description.ilike(like),
+            Expense.merchant.ilike(like),
+        ))
 
     count_result = await db.execute(select(func.count()).where(and_(*filters)))
     total = count_result.scalar() or 0
@@ -203,6 +210,8 @@ async def update_expense(
         expense.category_id = data["category_id"]
     if "date" in data and data["date"] is not None:
         expense.date = data["date"]
+    if "notes" in data:
+        expense.notes = data["notes"] or None
     await db.commit()
     result = await db.execute(
         select(Expense).where(Expense.id == expense_id).options(selectinload(Expense.category))

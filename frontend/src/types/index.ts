@@ -5,6 +5,7 @@ export interface User {
   currency: string
   timezone: string
   whatsapp_phone: string | null
+  email_summary: boolean
   created_at: string
 }
 
@@ -28,6 +29,7 @@ export interface Expense {
   merchant: string | null
   address: string | null
   has_file: boolean
+  notes: string | null
   category_id: number | null
   category_name: string | null
   category_emoji: string | null

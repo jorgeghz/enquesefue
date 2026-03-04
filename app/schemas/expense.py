@@ -23,6 +23,7 @@ class ExpenseOut(BaseModel):
     merchant: str | None
     address: str | None
     has_file: bool
+    notes: str | None
     category_id: int | None
     category_name: str | None
     category_emoji: str | None
@@ -42,6 +43,7 @@ class ExpenseOut(BaseModel):
             merchant=expense.merchant,
             address=expense.address,
             has_file=expense.has_file,
+            notes=expense.notes,
             category_id=expense.category_id,
             category_name=expense.category.name if expense.category else None,
             category_emoji=expense.category.emoji if expense.category else None,
@@ -69,6 +71,7 @@ class EditExpenseRequest(BaseModel):
     currency: str | None = None
     category_id: int | None = None
     date: datetime | None = None
+    notes: str | None = None
 
 
 class DuplicateInfo(BaseModel):

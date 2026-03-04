@@ -155,6 +155,24 @@ def format_weekly_summary(data: dict) -> str:
     return "\n".join(lines)
 
 
+def format_query_result(expenses: list, total: float, period_label: str, keyword: str | None) -> str:
+    """Resultado de una consulta de gastos en lenguaje natural."""
+    kw = f" sobre \"{keyword}\"" if keyword else ""
+    if not expenses:
+        return f"📭 No encontré gastos{kw} en {period_label}."
+
+    currency = expenses[0].currency if expenses else "MXN"
+    lines = [f"🔍 *Gastos{kw} — {period_label}*", f"💵 Total: ${total:,.2f} {currency}", ""]
+    for e in expenses[:8]:
+        date_str = e.date.strftime("%-d %b") if hasattr(e.date, "strftime") else ""
+        emoji = e.category.emoji if e.category else "💰"
+        merchant = e.merchant or e.description
+        lines.append(f"{emoji} {merchant} — ${float(e.amount):,.2f}  _{date_str}_")
+    if len(expenses) > 8:
+        lines.append(f"  ...y {len(expenses) - 8} más")
+    return "\n".join(lines)
+
+
 def format_last_expenses(expenses: list) -> str:
     """Lista de últimos gastos."""
     if not expenses:
@@ -179,6 +197,10 @@ def format_help() -> str:
         "📊 *resumen* — gastos del mes actual\n"
         "📅 *semana* — gastos de los últimos 7 días\n"
         "📋 *últimos* — tus 5 gastos más recientes\n"
+        "🔍 *consultas en lenguaje natural:*\n"
+        "  _\"cuánto gasté en uber esta semana\"_\n"
+        "  _\"mis gastos de comida de enero\"_\n"
+        "  _\"gastos en oxxo del mes pasado\"_\n"
         "❓ *ayuda* — este mensaje"
     )
 

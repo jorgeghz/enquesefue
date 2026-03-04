@@ -52,6 +52,21 @@ export default function Settings() {
     }
   }
 
+  // Resumen mensual por email
+  const [emailSummary, setEmailSummary] = useState(user?.email_summary ?? true)
+  const [emailSummarySaving, setEmailSummarySaving] = useState(false)
+
+  const handleToggleEmailSummary = async (enabled: boolean) => {
+    setEmailSummary(enabled)
+    setEmailSummarySaving(true)
+    try {
+      const res = await api.patch<User>('/auth/me', { email_summary: enabled })
+      setUser(res.data)
+    } finally {
+      setEmailSummarySaving(false)
+    }
+  }
+
   // Categorías personalizadas
   const [categories, setCategories] = useState<Category[]>([])
   const [editingCat, setEditingCat] = useState<number | null>(null)
@@ -197,6 +212,38 @@ export default function Settings() {
               className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
             >
               {tzSaving ? 'Guardando…' : tzSaved ? '✓ Guardado' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+
+        {/* ── Tarjeta: Resumen mensual por email ────────────────────── */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xl">📧</span>
+            <h3 className="text-lg font-semibold text-gray-900">Resumen mensual por email</h3>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            El día 1 de cada mes recibirás un resumen del mes anterior directamente en tu correo.
+          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-700">
+                {emailSummary ? '✅ Activado' : '⏸️ Desactivado'}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">{user?.email}</p>
+            </div>
+            <button
+              onClick={() => handleToggleEmailSummary(!emailSummary)}
+              disabled={emailSummarySaving}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                emailSummary ? 'bg-indigo-600' : 'bg-gray-200'
+              } disabled:opacity-50`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  emailSummary ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
             </button>
           </div>
         </div>

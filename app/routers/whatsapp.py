@@ -20,7 +20,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.whatsapp import WhatsAppLinkToken
-from app.services.ai_service import parse_expense_from_text, parse_multiple_expenses_from_text
+from app.services.ai_service import parse_expense_from_text, parse_multiple_expenses_from_text, query_expenses_natural
 from app.services.audio_service import transcribe_audio_bytes
 from app.services.auth_service import register_user
 from app.services.expense_service import (
@@ -44,6 +44,7 @@ from app.services.whatsapp_service import (
     format_not_linked,
     format_pdf_ok,
     format_pin_expired,
+    format_query_result,
     format_unknown,
     format_weekly_summary,
     send_message,
@@ -229,6 +230,10 @@ async def _handle_linked(
     if not body:
         return format_help()
 
+    # ── Consulta en lenguaje natural ──────────────────────────────────────
+    if _is_expense_query(cmd):
+        return await _handle_natural_query(user, body, db)
+
     parsed = await parse_expense_from_text(body, tz_name=user.timezone)
     if not parsed:
         return format_unknown(body)
@@ -242,6 +247,51 @@ async def _handle_linked(
     )
     expense = exp_result.scalar_one()
     return format_expense_ok(expense, dup)
+
+
+# ---------------------------------------------------------------------------
+# Consulta de gastos en lenguaje natural
+# ---------------------------------------------------------------------------
+
+# Frases que indican que el usuario está consultando, no registrando un gasto
+_QUERY_TRIGGERS = [
+    "cuánto gasté", "cuanto gasté",
+    "cuánto he gastado", "cuanto he gastado",
+    "cuánto llevo", "cuanto llevo",
+    "gastos de", "gastos en",
+    "mis gastos", "ver gastos", "mostrar gastos",
+    "cuáles son mis", "cuales son mis",
+    "qué gasté", "que gasté",
+    "buscar gastos", "filtrar gastos",
+    "cuánto llevo gastado", "cuanto llevo gastado",
+]
+
+
+def _is_expense_query(text: str) -> bool:
+    """Heurística para detectar consultas de historial vs registros de nuevos gastos."""
+    t = text.lower()
+    if t.startswith(("cuánto", "cuanto")):
+        return True
+    return any(trigger in t for trigger in _QUERY_TRIGGERS)
+
+
+async def _handle_natural_query(user: User, query: str, db: AsyncSession) -> str:
+    """Interpreta una consulta de gastos en lenguaje natural y devuelve la respuesta."""
+    filters = await query_expenses_natural(query, tz_name=user.timezone)
+    if not filters:
+        return "❌ No pude interpretar tu consulta. Intenta con algo como: _\"cuánto gasté en uber esta semana\"_."
+
+    expenses, total_count = await list_expenses(
+        user.id,
+        db,
+        page=1,
+        limit=20,
+        date_from=filters["date_from"],
+        date_to=filters["date_to"],
+        search=filters["keyword"],
+    )
+    total_amount = sum(float(e.amount) for e in expenses)
+    return format_query_result(expenses, total_amount, filters["period_label"], filters["keyword"])
 
 
 async def _handle_media(

@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     # Timezone default (IANA name). Overridden per-user in the DB.
     app_timezone: str = "America/Mexico_City"
 
+    # Email (SMTP) — resumen mensual automático
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "enquesefue <noreply@enquesefue.com>"
+
     @property
     def async_database_url(self) -> str:
         url = self.database_url

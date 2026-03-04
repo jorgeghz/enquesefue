@@ -16,6 +16,7 @@ class UserOut(BaseModel):
     currency: str
     timezone: str
     whatsapp_phone: str | None = None
+    email_summary: bool = True
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -23,3 +24,4 @@ class UserOut(BaseModel):
 
 class UserUpdate(BaseModel):
     timezone: str | None = None
+    email_summary: bool | None = None

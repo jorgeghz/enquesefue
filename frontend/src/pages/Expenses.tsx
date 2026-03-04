@@ -271,6 +271,9 @@ export default function Expenses() {
                       {e.address && (
                         <p className="text-xs text-gray-400 truncate">{e.address}</p>
                       )}
+                      {e.notes && (
+                        <p className="text-xs text-amber-600 truncate">📝 {e.notes}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

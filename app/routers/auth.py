@@ -52,6 +52,8 @@ async def update_me(
         if not is_valid_timezone(body.timezone):
             raise HTTPException(status_code=400, detail="Zona horaria inválida")
         current_user.timezone = body.timezone
+    if body.email_summary is not None:
+        current_user.email_summary = body.email_summary
     await db.commit()
     await db.refresh(current_user)
     return current_user

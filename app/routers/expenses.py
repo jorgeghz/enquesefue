@@ -47,7 +47,7 @@ async def export_expenses(
     )
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["fecha", "descripcion", "monto", "moneda", "categoria", "fuente"])
+    writer.writerow(["fecha", "descripcion", "monto", "moneda", "categoria", "fuente", "notas"])
     for e in expenses:
         writer.writerow([
             e.date.strftime("%Y-%m-%d"),
@@ -56,6 +56,7 @@ async def export_expenses(
             e.currency,
             e.category.name if e.category else "",
             e.source,
+            e.notes or "",
         ])
     output.seek(0)
     return StreamingResponse(

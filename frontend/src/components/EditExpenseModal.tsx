@@ -15,6 +15,7 @@ export default function EditExpenseModal({ expense, categories, onSave, onClose 
   const [currency, setCurrency] = useState(expense.currency)
   const [categoryId, setCategoryId] = useState<number | ''>(expense.category_id ?? '')
   const [date, setDate] = useState(expense.date.split('T')[0])
+  const [notes, setNotes] = useState(expense.notes ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -29,6 +30,7 @@ export default function EditExpenseModal({ expense, categories, onSave, onClose 
         currency,
         category_id: categoryId || null,
         date: date + 'T12:00:00',
+        notes: notes.trim() || null,
       })
       onSave(res.data)
     } catch {
@@ -99,6 +101,17 @@ export default function EditExpenseModal({ expense, categories, onSave, onClose 
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-gray-500 mb-1 block">Notas (opcional)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Agrega un comentario o detalle adicional..."
+              rows={2}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
             />
           </div>
 

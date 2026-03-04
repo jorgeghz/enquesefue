@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import InstallBanner from './InstallBanner'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth()
@@ -71,6 +72,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
         {children}
       </main>
+
+      <InstallBanner />
 
       {/* Barra de navegación inferior — solo en móvil */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex md:hidden z-10">
