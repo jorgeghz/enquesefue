@@ -203,6 +203,31 @@ def format_expense_error(detail: str = "") -> str:
     return msg
 
 
+def format_greeting(name: str) -> str:
+    return (
+        f"👋 ¡Hola, {name}! Soy tu asistente de gastos.\n\n"
+        "Puedes registrar un gasto escribiéndolo en texto:\n"
+        "  _\"gasté 150 en el super\"_\n\n"
+        "O envíame una foto del ticket, nota de voz o PDF.\n\n"
+        "Escribe *ayuda* para ver todos los comandos disponibles."
+    )
+
+
+def format_acknowledgment() -> str:
+    return "👍 ¡Listo! Escribe *ayuda* si necesitas algo."
+
+
+def format_unknown(body: str) -> str:
+    return (
+        f"🤔 No entendí _\"{body[:60]}\"_ como un gasto.\n\n"
+        "Para registrar un gasto escribe algo como:\n"
+        "  _\"gasté 200 en gasolina\"_\n"
+        "  _\"120 pesos de comida\"_\n\n"
+        "O envía una foto del ticket, nota de voz o PDF.\n"
+        "Escribe *ayuda* para ver todos los comandos."
+    )
+
+
 def format_link_ok(name: str) -> str:
     return f"✅ ¡Listo! Tu número quedó vinculado a la cuenta de *{name}*.\nYa puedes registrar gastos aquí."
 

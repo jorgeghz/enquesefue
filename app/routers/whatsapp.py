@@ -33,8 +33,10 @@ from app.services.pdf_service import parse_bank_statement
 from app.services.vision_service import analyze_receipt_bytes
 from app.services.whatsapp_service import (
     download_media,
+    format_acknowledgment,
     format_expense_error,
     format_expense_ok,
+    format_greeting,
     format_help,
     format_last_expenses,
     format_link_ok,
@@ -42,6 +44,7 @@ from app.services.whatsapp_service import (
     format_not_linked,
     format_pdf_ok,
     format_pin_expired,
+    format_unknown,
     format_weekly_summary,
     send_message,
     validate_twilio_signature,
@@ -199,6 +202,25 @@ async def _handle_linked(
     if cmd in ("ayuda", "help"):
         return format_help()
 
+    # ── Saludos ───────────────────────────────────────────────────────────
+    _GREETINGS = {
+        "hola", "hi", "hey", "ey", "alo", "aló",
+        "buenos días", "buenos dias", "buen día", "buen dia",
+        "buenas tardes", "buenas noches", "buenas",
+        "qué tal", "que tal", "qué onda", "que onda", "qué hay", "que hay",
+    }
+    if cmd in _GREETINGS or any(cmd.startswith(g + " ") for g in _GREETINGS):
+        return format_greeting(user.name)
+
+    # ── Reconocimientos sociales ──────────────────────────────────────────
+    _ACK = {
+        "gracias", "gracia", "thanks", "ok", "okay", "okey", "dale",
+        "perfecto", "listo", "bien", "excelente", "entendido", "claro",
+        "de nada", "np", "👍", "👌", "✅", "jeje", "jaja", "😂", "🙏",
+    }
+    if cmd in _ACK:
+        return format_acknowledgment()
+
     # ── Media ─────────────────────────────────────────────────────────────
     if num_media > 0 and media_url and media_content_type:
         return await _handle_media(user, media_url, media_content_type, body, db)
@@ -209,7 +231,7 @@ async def _handle_linked(
 
     parsed = await parse_expense_from_text(body, tz_name=user.timezone)
     if not parsed:
-        return format_expense_error()
+        return format_unknown(body)
 
     from app.models.expense import Expense as ExpenseModel
     from sqlalchemy.orm import selectinload as _si
