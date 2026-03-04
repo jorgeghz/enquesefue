@@ -30,11 +30,26 @@ export interface Expense {
   address: string | null
   has_file: boolean
   notes: string | null
+  recurring_expense_id: number | null
   category_id: number | null
   category_name: string | null
   category_emoji: string | null
   date: string
-  source: 'text' | 'audio' | 'image' | 'pdf'
+  source: 'text' | 'audio' | 'image' | 'pdf' | 'recurring'
+  created_at: string
+}
+
+export interface RecurringExpense {
+  id: number
+  description: string
+  amount: number
+  currency: string
+  category_id: number | null
+  category_name: string | null
+  category_emoji: string | null
+  merchant: string | null
+  day_of_month: number
+  active: boolean
   created_at: string
 }
 

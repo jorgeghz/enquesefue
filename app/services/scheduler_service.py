@@ -1,5 +1,6 @@
 """
 Tareas programadas (APScheduler).
+- Gastos recurrentes: diario a las 7:00 AM hora de México.
 - Resumen semanal de WhatsApp: cada lunes a las 9:00 AM hora de México.
 - Resumen mensual por email: el día 1 de cada mes a las 8:00 AM hora de México.
 """
@@ -42,6 +43,71 @@ async def _send_weekly_summaries() -> None:
             logger.error("Error enviando resumen a user %d: %s", user.id, e)
 
 
+async def _create_recurring_expenses() -> None:
+    """Crea los gastos recurrentes cuyo day_of_month coincide con el día de hoy."""
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    from sqlalchemy import extract, select
+
+    from app.database import AsyncSessionLocal
+    from app.models.expense import Expense
+    from app.models.recurring_expense import RecurringExpense
+
+    now = datetime.now(ZoneInfo("America/Mexico_City"))
+    today_day = now.day
+
+    logger.info("Verificando gastos recurrentes para el día %d...", today_day)
+
+    async with AsyncSessionLocal() as db:
+        result = await db.execute(
+            select(RecurringExpense).where(
+                RecurringExpense.active.is_(True),
+                RecurringExpense.day_of_month == today_day,
+            )
+        )
+        templates = result.scalars().all()
+
+    created = 0
+    for template in templates:
+        try:
+            async with AsyncSessionLocal() as db:
+                # Evitar duplicados: ya existe un gasto de este template en el mes actual?
+                dup_result = await db.execute(
+                    select(Expense).where(
+                        Expense.user_id == template.user_id,
+                        Expense.recurring_expense_id == template.id,
+                        extract("year", Expense.date) == now.year,
+                        extract("month", Expense.date) == now.month,
+                    ).limit(1)
+                )
+                if dup_result.scalar_one_or_none():
+                    continue  # ya creado este mes
+
+                expense = Expense(
+                    user_id=template.user_id,
+                    amount=template.amount,
+                    currency=template.currency,
+                    description=template.description,
+                    merchant=template.merchant,
+                    category_id=template.category_id,
+                    date=now.astimezone(timezone.utc),
+                    source="recurring",
+                    raw_input=f"Gasto recurrente automático: {template.description}",
+                    recurring_expense_id=template.id,
+                )
+                db.add(expense)
+                await db.commit()
+                created += 1
+                logger.info(
+                    "Gasto recurrente creado: '%s' (user %d)", template.description, template.user_id
+                )
+        except Exception as e:
+            logger.error("Error creando gasto recurrente %d: %s", template.id, e)
+
+    logger.info("Gastos recurrentes creados hoy: %d", created)
+
+
 async def _send_monthly_email_summaries() -> None:
     """El 1° de cada mes envía el resumen del mes anterior por email a los usuarios que lo tienen activado."""
     from datetime import datetime, timedelta
@@ -81,6 +147,12 @@ async def _send_monthly_email_summaries() -> None:
 
 def start_scheduler() -> None:
     _scheduler.add_job(
+        _create_recurring_expenses,
+        CronTrigger(hour=7, minute=0, timezone=_MEXICO),
+        id="daily_recurring_expenses",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
         _send_weekly_summaries,
         CronTrigger(day_of_week="mon", hour=9, minute=0, timezone=_MEXICO),
         id="weekly_whatsapp_summary",
@@ -93,7 +165,7 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
     _scheduler.start()
-    logger.info("Scheduler iniciado — WhatsApp lunes 9AM | Email día 1 de mes 8AM (México)")
+    logger.info("Scheduler iniciado — Recurrentes 7AM | WhatsApp lunes 9AM | Email día 1 8AM (México)")
 
 
 def stop_scheduler() -> None:

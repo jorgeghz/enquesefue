@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.models.category import Category
+from app.models.category_rule import UserCategoryRule
 from app.models.expense import Expense
 from app.models.user import User
 from app.schemas.expense import DuplicateInfo, ExpenseParsed
@@ -85,6 +86,40 @@ async def get_or_create_category(name: str, user_id: int, db: AsyncSession) -> C
     return category
 
 
+async def _apply_user_rule(merchant: str | None, user_id: int, db: AsyncSession) -> Category | None:
+    """Devuelve la categoría aprendida para este merchant, o None si no hay regla."""
+    if not merchant:
+        return None
+    keyword = merchant.lower().strip()[:100]
+    rule_result = await db.execute(
+        select(UserCategoryRule).where(
+            UserCategoryRule.user_id == user_id,
+            UserCategoryRule.keyword == keyword,
+        )
+    )
+    rule = rule_result.scalar_one_or_none()
+    if not rule:
+        return None
+    cat_result = await db.execute(select(Category).where(Category.id == rule.category_id))
+    return cat_result.scalar_one_or_none()
+
+
+async def _upsert_category_rule(user_id: int, merchant: str, category_id: int, db: AsyncSession) -> None:
+    """Guarda o actualiza la regla merchant → categoría para este usuario."""
+    keyword = merchant.lower().strip()[:100]
+    result = await db.execute(
+        select(UserCategoryRule).where(
+            UserCategoryRule.user_id == user_id,
+            UserCategoryRule.keyword == keyword,
+        )
+    )
+    rule = result.scalar_one_or_none()
+    if rule:
+        rule.category_id = category_id
+    else:
+        db.add(UserCategoryRule(user_id=user_id, keyword=keyword, category_id=category_id))
+
+
 async def save_expense(
     parsed: ExpenseParsed,
     user: User,
@@ -104,7 +139,10 @@ async def save_expense(
     if not duplicate:
         duplicate = await find_duplicate_by_fingerprint(parsed, user.id, db)
 
-    category = await get_or_create_category(parsed.category_name, user.id, db)
+    # Aplicar regla aprendida: si el merchant tiene una categoría guardada, usarla en lugar de la de GPT
+    category = await _apply_user_rule(parsed.merchant, user.id, db)
+    if category is None:
+        category = await get_or_create_category(parsed.category_name, user.id, db)
 
     expense = Expense(
         user_id=user.id,
@@ -207,7 +245,11 @@ async def update_expense(
     if "currency" in data and data["currency"] is not None:
         expense.currency = data["currency"]
     if "category_id" in data and data["category_id"] is not None:
+        old_category_id = expense.category_id
         expense.category_id = data["category_id"]
+        # Aprender: si el gasto tiene merchant y el usuario cambió la categoría, guardar la regla
+        if expense.merchant and old_category_id != data["category_id"]:
+            await _upsert_category_rule(expense.user_id, expense.merchant, data["category_id"], db)
     if "date" in data and data["date"] is not None:
         expense.date = data["date"]
     if "notes" in data:

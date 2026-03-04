@@ -53,6 +53,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <nav className="space-y-1 flex-1">
           {navLink('/', 'Dashboard', '📊')}
           {navLink('/gastos', 'Gastos', '💳')}
+          {navLink('/recurrentes', 'Recurrentes', '🔁')}
           {navLink('/configuracion', 'Configuración', '⚙️')}
         </nav>
         <button
@@ -77,16 +78,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Barra de navegación inferior — solo en móvil */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex md:hidden z-10">
-        {bottomNavLink('/', 'Dashboard', '📊')}
+        {bottomNavLink('/', 'Inicio', '📊')}
         {bottomNavLink('/gastos', 'Gastos', '💳')}
+        {bottomNavLink('/recurrentes', 'Recurrentes', '🔁')}
         {bottomNavLink('/configuracion', 'Config', '⚙️')}
-        <button
-          onClick={handleLogout}
-          className="flex flex-col items-center gap-0.5 px-4 py-2 text-xs font-medium text-gray-400 transition flex-1"
-        >
-          <span className="text-xl">🚪</span>
-          Salir
-        </button>
       </nav>
     </div>
   )

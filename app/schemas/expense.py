@@ -24,6 +24,7 @@ class ExpenseOut(BaseModel):
     address: str | None
     has_file: bool
     notes: str | None
+    recurring_expense_id: int | None
     category_id: int | None
     category_name: str | None
     category_emoji: str | None
@@ -44,6 +45,7 @@ class ExpenseOut(BaseModel):
             address=expense.address,
             has_file=expense.has_file,
             notes=expense.notes,
+            recurring_expense_id=expense.recurring_expense_id,
             category_id=expense.category_id,
             category_name=expense.category.name if expense.category else None,
             category_emoji=expense.category.emoji if expense.category else None,

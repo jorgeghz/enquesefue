@@ -33,7 +33,7 @@ async def get_db() -> AsyncSession:
 
 async def init_db() -> None:
     """Crear tablas y hacer seed de categorías globales."""
-    from app.models import category, expense, expense_file, user, whatsapp  # noqa: F401 — registra los modelos
+    from app.models import category, category_rule, expense, expense_file, recurring_expense, user, whatsapp  # noqa: F401 — registra los modelos
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -78,6 +78,14 @@ async def init_db() -> None:
         # Migración idempotente: email_summary en users
         await conn.execute(text(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_summary BOOLEAN NOT NULL DEFAULT TRUE"
+        ))
+        # Migración idempotente: recurring_expense_id en expenses
+        await conn.execute(text(
+            "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS recurring_expense_id INTEGER"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ix_expenses_recurring_expense_id "
+            "ON expenses (recurring_expense_id) WHERE recurring_expense_id IS NOT NULL"
         ))
 
     await _seed_global_categories()

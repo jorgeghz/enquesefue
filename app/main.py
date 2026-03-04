@@ -11,7 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import init_db
 from app.limiter import limiter
-from app.routers import auth, categories, expenses, stats, upload, whatsapp
+from app.routers import auth, categories, expenses, recurring, stats, upload, whatsapp
 from app.services.scheduler_service import start_scheduler, stop_scheduler
 
 
@@ -50,6 +50,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(expenses.router)
+app.include_router(recurring.router)
 app.include_router(categories.router)
 app.include_router(stats.router)
 app.include_router(upload.router)

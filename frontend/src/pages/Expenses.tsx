@@ -15,7 +15,7 @@ function formatMoney(amount: number, currency = 'MXN') {
 }
 
 function sourceIcon(source: string) {
-  return { text: '✍️', audio: '🎤', image: '📷', pdf: '📄' }[source] ?? '📝'
+  return { text: '✍️', audio: '🎤', image: '📷', pdf: '📄', recurring: '🔁' }[source] ?? '📝'
 }
 
 export default function Expenses() {
@@ -273,6 +273,9 @@ export default function Expenses() {
                       )}
                       {e.notes && (
                         <p className="text-xs text-amber-600 truncate">📝 {e.notes}</p>
+                      )}
+                      {e.recurring_expense_id && (
+                        <span className="inline-block text-xs bg-indigo-50 text-indigo-500 rounded px-1.5 py-0.5">🔁 recurrente</span>
                       )}
                     </div>
                   </div>
