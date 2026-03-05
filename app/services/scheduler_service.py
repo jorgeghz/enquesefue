@@ -53,6 +53,7 @@ async def _create_recurring_expenses() -> None:
     from app.database import AsyncSessionLocal
     from app.models.expense import Expense
     from app.models.recurring_expense import RecurringExpense
+    from app.models.user import User
 
     now = datetime.now(ZoneInfo("America/Mexico_City"))
     today_day = now.day
@@ -127,6 +128,21 @@ async def _create_recurring_expenses() -> None:
                 logger.info(
                     "Gasto recurrente creado: '%s' (user %d)", template.description, template.user_id
                 )
+
+                # Enviar push notification si el usuario tiene token registrado
+                user_result = await db.execute(
+                    select(User).where(User.id == template.user_id).limit(1)
+                )
+                user_obj = user_result.scalar_one_or_none()
+                if user_obj and user_obj.push_token:
+                    from app.services.push_service import send_push_notification
+                    display_amount = f"${template.amount:,.2f} {template.currency}"
+                    await send_push_notification(
+                        token=user_obj.push_token,
+                        title="Gasto recurrente registrado 🔁",
+                        body=f"{template.description} — {display_amount}",
+                        data={"type": "recurring", "expense_id": expense.id},
+                    )
         except Exception as e:
             logger.error("Error creando gasto recurrente %d: %s", template.id, e)
 

@@ -21,6 +21,8 @@ class User(Base):
     whatsapp_phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True, nullable=True)
     # Resumen mensual por email: True = habilitado (opt-out)
     email_summary: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true", nullable=False)
+    # Expo Push Token para notificaciones nativas de la app móvil
+    push_token: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     expenses: Mapped[list["Expense"]] = relationship(back_populates="user", lazy="select")  # noqa: F821

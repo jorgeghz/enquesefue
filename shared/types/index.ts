@@ -1,0 +1,105 @@
+export interface User {
+  id: number
+  email: string
+  name: string
+  currency: string
+  timezone: string
+  whatsapp_phone: string | null
+  email_summary: boolean
+  created_at: string
+}
+
+export interface Category {
+  id: number
+  name: string
+  emoji: string
+  user_id?: number | null
+}
+
+export interface DailyStat {
+  date: string
+  total: number
+}
+
+export interface Expense {
+  id: number
+  amount: number
+  currency: string
+  description: string
+  merchant: string | null
+  address: string | null
+  has_file: boolean
+  notes: string | null
+  recurring_expense_id: number | null
+  category_id: number | null
+  category_name: string | null
+  category_emoji: string | null
+  date: string
+  source: 'text' | 'audio' | 'image' | 'pdf' | 'recurring'
+  created_at: string
+}
+
+export interface RecurringExpense {
+  id: number
+  description: string
+  amount: number
+  currency: string
+  category_id: number | null
+  category_name: string | null
+  category_emoji: string | null
+  merchant: string | null
+  day_of_month: number
+  active: boolean
+  created_at: string
+}
+
+export interface ExpenseListResponse {
+  items: Expense[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
+export interface CategoryStat {
+  name: string
+  emoji: string
+  total: number
+}
+
+export interface SummaryResponse {
+  total: number
+  count: number
+  by_category: CategoryStat[]
+  recent: Expense[]
+  start: string
+  end: string
+}
+
+export interface Token {
+  access_token: string
+  token_type: string
+}
+
+export interface DuplicateInfo {
+  id: number
+  amount: number
+  currency: string
+  description: string
+  date: string
+  source: string
+}
+
+export interface ExpenseWithDuplicate extends Expense {
+  possible_duplicate: DuplicateInfo | null
+}
+
+export interface PDFExpense extends Expense {
+  is_possible_duplicate: boolean
+}
+
+export interface PDFImportResult {
+  created: number
+  duplicates_count: number
+  expenses: PDFExpense[]
+}
