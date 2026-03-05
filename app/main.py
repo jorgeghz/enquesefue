@@ -13,7 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.database import init_db
 from app.limiter import limiter
-from app.routers import auth, categories, expenses, recurring, stats, upload, whatsapp
+from app.routers import auth, categories, expenses, push, recurring, stats, upload, whatsapp
 from app.services.scheduler_service import start_scheduler, stop_scheduler
 
 logger = logging.getLogger(__name__)
@@ -76,6 +76,7 @@ app.include_router(categories.router)
 app.include_router(stats.router)
 app.include_router(upload.router)
 app.include_router(whatsapp.router)
+app.include_router(push.router)
 
 
 @app.get("/api/config", include_in_schema=False)
